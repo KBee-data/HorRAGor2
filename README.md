@@ -3,7 +3,10 @@
 Agent conversationnel RAG (LangGraph, boucle ReAct + Juge déterministe) sur une base de
 films d'horreur, exposé via une **API FastAPI** asynchrone et une **interface de chat Streamlit**.
 
-Stack : LangGraph · FAISS · Supabase (SQL + pgvector) · FastAPI · Streamlit · uv.
+Stack : LangGraph · Ollama (LLM + embeddings, local) · FAISS · Supabase (SQL + pgvector) · FastAPI · Streamlit · uv.
+
+> **Prérequis IA (local, sans clé API)** : installer [Ollama](https://ollama.com), puis
+> `ollama pull llama3.2:3b` et `ollama pull nomic-embed-text` (embeddings 768 dim).
 
 ## Démarrage rapide
 

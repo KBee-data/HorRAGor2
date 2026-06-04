@@ -138,9 +138,9 @@ La base est actuellement vide. Schéma de départ :
 | `rating` | `numeric` | Note moyenne |
 | `cast` | `text[]` | Casting |
 | `synopsis` | `text` | Synopsis de base |
-| `embedding` | `vector(N)` | pgvector — reco sémantique |
+| `embedding` | `vector(768)` | pgvector — reco sémantique |
 
-`N` = dimension du modèle d'embeddings (à choisir). Le **golden data** sera fourni ultérieurement et figera le schéma définitif.
+Dimension **768** = modèle d'embeddings `nomic-embed-text` (Ollama). Le **golden data** sera fourni ultérieurement et figera le schéma définitif.
 
 ---
 
@@ -198,9 +198,12 @@ HorRAGor2/
 
 ---
 
-## 8. Décisions ouvertes
+## 8. Décisions
 
-- [ ] Fournisseur **LLM** (agent ReAct).
-- [ ] Modèle d'**embeddings** (fixe `N` et la cohérence FAISS/PGVector).
+- [x] **LLM** : Ollama local `llama3.2:3b` (tool-calling, léger, sans clé API).
+- [x] **Embeddings** : Ollama `nomic-embed-text` → **768 dim** (cohérent FAISS + PGVector).
 - [ ] Répartition des **rôles** (application / API / BDD-FAISS) + boucle ReAct commune.
 - [ ] Schéma de données définitif (au reçu du **golden data**).
+
+> Stack 100 % locale : prérequis = installer Ollama puis `ollama pull llama3.2:3b` et
+> `ollama pull nomic-embed-text`. Aucune dépendance cloud, aucun coût.

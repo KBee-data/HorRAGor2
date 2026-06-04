@@ -26,9 +26,16 @@ class Settings(BaseSettings):
     # URL de l'API telle que vue par le Front (sert au client HTTP Streamlit).
     api_base_url: str = "http://127.0.0.1:8000"
 
-    # --- Modeles (choix d'equipe, encore a definir) ---
-    llm_model: str = "a-definir"
-    embedding_model: str = "a-definir"
+    # --- Modeles : stack 100% locale via Ollama (aucune cle API) ---
+    # Ollama expose LLM et embeddings sur la meme instance locale.
+    ollama_base_url: str = "http://localhost:11434"
+    # LLM leger compatible tool-calling (ReAct). Modifiable selon le materiel.
+    llm_model: str = "llama3.2:3b"
+    # Embeddings Ollama. nomic-embed-text -> 768 dimensions.
+    embedding_model: str = "nomic-embed-text"
+    # Dimension du vecteur : DOIT correspondre a la colonne pgvector vector(768)
+    # ET a l'index FAISS. La changer impose de re-embedder toutes les donnees.
+    embedding_dim: int = 768
 
 
 # Instancie une fois au chargement du module : importer `settings` suffit partout.

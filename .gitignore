@@ -1,0 +1,94 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ---- uv / venv ----
+.venv/
+venv/
+env/
+ENV/
+# uv.lock SHOULD be committed (reproducible builds) -> not ignored
+
+# ---- Environnement & secrets ----
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+credentials.json
+service_account*.json
+
+# ---- Tests / qualité ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# ---- Notebooks ----
+.ipynb_checkpoints/
+
+# ---- IA / RAG : index & artefacts lourds ----
+*.faiss
+*.index
+faiss_index/
+*.pkl
+*.bin
+.cache/
+models/
+embeddings/
+
+# ---- Données ----
+*.db
+*.sqlite
+*.sqlite3
+data/raw/
+data/interim/
+*.csv
+*.parquet
+!data/**/sample*.csv
+
+# ---- Logs ----
+*.log
+logs/
+
+# ---- Streamlit ----
+.streamlit/secrets.toml
+
+# ---- IDE / OS ----
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ---- Divers ----
+*.tmp
+*.bak

@@ -1,0 +1,15 @@
+# Theme graphique impose des le chargement (identite visuelle "Chat Horror").
+# POURQUOI ce fichier : sans lui, Streamlit demarre sur son theme clair par defaut.
+# En le versionnant (commit Git), TOUS les utilisateurs voient le meme theme sombre.
+# Streamlit lit ce fichier dans le dossier .streamlit/ du repertoire de lancement
+# (ici la racine du projet, ou l'on execute `streamlit run src/front/app.py`).
+[theme]
+# Rouge sang : boutons et elements actifs
+primaryColor = "#8b0000"
+# Noir profond : arriere-plan de l'application
+backgroundColor = "#111111"
+# Gris tres sombre : barre laterale et bulles de chat
+secondaryBackgroundColor = "#1b1f24"
+# Blanc casse / gris clair : lecture confortable
+textColor = "#e2e8f0"
+font = "sans serif"

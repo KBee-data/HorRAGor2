@@ -1,0 +1,21 @@
+%% HorRAGor2 — Graphe de l'agent (LangGraph, boucle ReAct + Juge déterministe)
+%% Livrable « Schéma du Graphe ». Export : https://mermaid.live → Actions → SVG
+stateDiagram-v2
+    [*] --> Agent
+    Agent --> Decision
+    Decision --> Tools: tool_calls présents
+    Decision --> Juge: réponse finale proposée
+    Tools --> Agent: observations
+    Juge --> Verdict
+    Verdict --> [*]: ✅ fidèle aux données
+    Verdict --> Agent: ❌ corriger (retry borné)
+    Verdict --> Fallback: ❌ + retries épuisés
+    Fallback --> [*]: « Je ne sais pas »
+
+    note right of Tools
+        FAISS · SQL · PGVector · Wikipédia
+    end note
+    note right of Juge
+        Vérifie que chaque fait cité
+        provient des observations des tools
+    end note

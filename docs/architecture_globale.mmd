@@ -1,0 +1,93 @@
+%% HorRAGor2 — Architecture globale du projet (tous les modules)
+%% Export : https://mermaid.live → Actions → SVG
+flowchart TB
+    User([👤 Utilisateur])
+
+    %% ---------- FRONT ----------
+    subgraph UIMOD["📦 src/horragor/ui — Streamlit"]
+        direction TB
+        CHAT["app.py<br/>chat + session_state + historique"]
+        HTTPCLI["client HTTP<br/>(requests/httpx)"]
+        CHAT --> HTTPCLI
+    end
+
+    %% ---------- API ----------
+    subgraph APIMOD["📦 src/horragor/api — FastAPI (async)"]
+        direction TB
+        ROUTES["routes.py<br/>POST /chat · GET /health"]
+        PYD["schemas.py<br/>Pydantic Request/Response"]
+        DEPS["deps.py<br/>injection moteur"]
+        ROUTES --- PYD
+        ROUTES --- DEPS
+    end
+
+    %% ---------- MOTEUR ----------
+    subgraph AGENTMOD["📦 src/horragor/agent — LangGraph"]
+        direction TB
+        GRAPH["graph.py<br/>boucle ReAct compilée"]
+        STATE["state.py<br/>AgentState (TypedDict)"]
+        PROMPTS["prompts.py<br/>system + consignes anti-hallucination"]
+        JUDGE["judge.py<br/>Juge déterministe"]
+        GRAPH --- STATE
+        GRAPH --- PROMPTS
+        GRAPH --> JUDGE
+    end
+
+    %% ---------- TOOLS ----------
+    subgraph TOOLSMOD["📦 src/horragor/tools — fonctions typées"]
+        direction TB
+        TVAL["faiss_tool.py<br/>validate_film(title)"]
+        TSQL["sql_tool.py<br/>get_film_metadata(id)"]
+        TVEC["pgvector_tool.py<br/>recommend_similar(id, k)"]
+        TWIKI["wikipedia_tool.py<br/>fetch_wikipedia(title)"]
+    end
+
+    %% ---------- DATA ----------
+    subgraph DATAMOD["📦 src/horragor/data — ingestion & index"]
+        direction TB
+        INGEST["ingest.py<br/>charge golden data → Supabase"]
+        EMBED["embed.py<br/>calcul des embeddings"]
+        BUILD["build_faiss.py<br/>construit l'index titres"]
+        INGEST --> EMBED
+        INGEST --> BUILD
+    end
+
+    %% ---------- STOCKAGE ----------
+    FAISSIDX[[Index FAISS<br/>titres · en RAM]]
+
+    subgraph SUPA["🗄️ Supabase — Postgres + pgvector"]
+        TBL[(table films<br/>id, title, director,<br/>year, genre, synopsis)]
+        VEC[(embedding<br/>vector N)]
+    end
+
+    %% ---------- EXTERNES ----------
+    LLM{{🤖 LLM<br/>fournisseur à définir}}
+    EMBAPI{{🧬 Embeddings<br/>modèle à définir}}
+    WIKI((🌐 Wikipédia))
+
+    %% ---------- FLUX PRINCIPAUX ----------
+    User -->|message| CHAT
+    HTTPCLI -->|HTTP JSON| ROUTES
+    ROUTES -->|run_agent| GRAPH
+    GRAPH <-->|reason / act| TOOLSMOD
+    GRAPH <-->|appels modèle| LLM
+    JUDGE -->|réponse validée| ROUTES
+    ROUTES -->|JSON| HTTPCLI
+
+    %% ---------- TOOLS → SOURCES ----------
+    TVAL -.lit.-> FAISSIDX
+    TSQL -->|SQL paramétré| TBL
+    TVEC -->|similarité cosinus| VEC
+    TWIKI -.scrape à la demande.-> WIKI
+
+    %% ---------- INGESTION (offline) ----------
+    INGEST --> TBL
+    EMBED -->|vecteurs| VEC
+    EMBED -.->|API| EMBAPI
+    BUILD --> FAISSIDX
+
+    %% ---------- STYLES ----------
+    classDef ext fill:#fde,stroke:#a44,stroke-width:1px;
+    classDef store fill:#eef,stroke:#44a,stroke-width:1px;
+    class LLM,EMBAPI,WIKI ext;
+    class FAISSIDX,TBL,VEC store;

@@ -1,0 +1,14 @@
+# Review auto-routee par dossier. Remplacer les pseudos par les vrais comptes GitHub.
+# Le superviseur garde la main sur les zones partagees.
+
+# Zones partagees -> superviseur
+/src/contracts/   @superviseur
+/src/mocks/       @superviseur
+/src/agent/       @superviseur
+/src/tools/       @superviseur
+/.github/         @superviseur
+
+# Briques (temps 1)
+/src/ui/          @apprenant-app
+/src/api/         @apprenant-api
+/src/data/        @apprenant-bdd

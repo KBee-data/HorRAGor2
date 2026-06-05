@@ -39,3 +39,27 @@ Contexte technique :
 - 10 requêtes parallèles (chunks de 20) : **~228 titres/s** → build complet ≈ **2,5 min**.
 - Conclusion : à l'étape 3, on embeddera en **requêtes concurrentes** (ThreadPool), pas en un seul gros batch.
 
+---
+
+## Étape 2 — Chargeur de titres (source configurable)
+
+**But :** fournir la liste des couples `(id, titre)` qui alimentera l'index, derrière une
+interface stable, pour pouvoir changer de source (SQLite Part 1 → Supabase) sans rien casser.
+
+**Ce que je fais :**
+- `config.py` : 3 réglages — `titles_db_path` (défaut = SQLite de Part 1, résolu depuis la
+  racine, surchargé via `.env`), `faiss_index_dir` (`faiss_index/`, déjà gitignoré),
+  `faiss_score_threshold` (0.75).
+- `src/backend/data/titles.py` : `load_titles(db_path=None) -> list[(id, title)]` lit
+  `SELECT id, title FROM movies` en **SQLite read-only** (`mode=ro`), titres vides exclus.
+- `tests/test_titles.py` : crée un mini SQLite temporaire et vérifie le chargement + l'erreur
+  si le fichier est absent (aucune dépendance à la vraie base).
+
+**Pourquoi ces choix :**
+- *Interface stable* : le build et le tool ne connaissent que `load_titles()`, pas la source.
+- *Read-only* : on ne risque jamais d'altérer la base de Part 1.
+- *Chemin configurable* : chacun peut pointer son propre SQLite, et on basculera sur Supabase
+  en ne modifiant que ce module.
+
+**Vérifier :** `uv run pytest -q tests/test_titles.py`.
+

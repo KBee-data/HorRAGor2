@@ -43,12 +43,12 @@ de l'instance partagée. FK + `on delete cascade` = cohérence avec le catalogue
 
 **Mesures (sous-ensemble de 500) :**
 - Insert ligne par ligne : **96 s** (le réseau dominait).
-- `executemany` : **~5-6 s** → extrapolation full 31 284 ≈ **~1 min**.
+- `executemany` : **~5-6 s** (le coût restant est l'embedding des synopsis, plus longs que les titres).
 
 **Vérifié :** 500 vecteurs en base, `dim = 768`, index `movie_embeddings_hnsw` présent.
 
-**Build complet :** `uv run horragor-embeddings` (job ponctuel, ~1 min). Le sous-ensemble de 500
-suffit pour développer/tester l'étape 3.
+**Build complet (réalisé) :** `uv run horragor-embeddings` → **31 284 embeddings en 352 s (~5,9 min)**,
+soit 100 % des films ayant un synopsis. Job ponctuel.
 
 **Vérifier :** `uv run horragor-embeddings --limit 500`.
 
@@ -94,7 +94,13 @@ Reco pgvector complète (branche `feat/pgvector-reco`) : extension + table `movi
 → génération des embeddings de synopsis → `recommend_similar` (cosinus `<=>`, index HNSW) →
 tool `find_similar_horror_movies`.
 
-**Reste :** lancer le **build complet** (`uv run horragor-embeddings`, ~1 min) pour couvrir les
-31 284 films (le sous-ensemble de 500 a servi à valider). Ensuite, plus aucun bloqueur côté
-brique data : tous les tools data sont prêts (`validate_film`, `query_movie_metadata`,
-`find_similar_horror_movies`, `calculate_movie_age`).
+**Build complet réalisé** : 31 284 films vectorisés (100 % de ceux ayant un synopsis).
+Plus aucun bloqueur côté brique data : tous les tools data sont prêts (`validate_film`,
+`query_movie_metadata`, `find_similar_horror_movies`, `calculate_movie_age`).
+
+**Démo (catalogue complet)** — la chaîne `validate_film → find_similar_horror_movies` :
+```
+Alien      -> The X from Outer Space, Queen of Blood, Alien Escape   (Horror/Sci-Fi)
+The Thing  -> Creature, The Brain Eaters, The Thing (2011)           (créature/body-horror)
+Hereditary -> Satan's Slaves, The Inheritance, The Heiress           (héritage/occulte)
+```

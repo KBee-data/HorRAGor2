@@ -34,6 +34,7 @@ horragor-faiss = "backend.data.build_faiss:main"
 horragor-search = "backend.data.search_faiss:main"
 horragor-pgvector-setup = "backend.data.setup_pgvector:main"
 horragor-embeddings = "backend.data.build_embeddings:main"
+horragor-graph = "backend.agent.export_graph:main"
 
 [build-system]
 requires = ["hatchling"]

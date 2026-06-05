@@ -60,3 +60,30 @@ film**. **Correctif obligatoire** : reconstruire l'index FAISS depuis **Supabase
 que les métadonnées) pour que les `id` soient cohérents. C'est l'étape suivante.
 
 **Vérifier :** `uv run pytest -q tests/test_sql_tool.py`.
+
+---
+
+## Étape 3 — Bascule de la source FAISS vers Supabase (cohérence des ids)
+
+**But :** corriger l'incohérence des `id` détectée à l'étape 2 — l'index FAISS doit utiliser
+les `id` de **Supabase** (mêmes que le connecteur SQL).
+
+**Ce que je fais :**
+- `src/backend/data/titles.py` — `load_titles()` choisit sa source dans cet ordre :
+  1. `db_path` explicite → SQLite (override tests / dev hors-ligne) ;
+  2. `settings.database_url` défini → **Supabase** (source de vérité des ids) ;
+  3. sinon → SQLite local (repli).
+- Reconstruction de l'index : `uv run horragor-faiss` lit désormais Supabase
+  (**33 961 titres en ~98 s**).
+
+**Pourquoi :** l'`id` renvoyé par `validate_film` sert de clé à `query_movie_metadata`. Les deux
+doivent provenir de la même base, sinon on mélange les films.
+
+**Preuve (chaîne complète FAISS → SQL) :**
+```
+'The Thing' -> FAISS id=2457 -> SQL: The Thing 1982, note 8.2          ✅
+'Hereditary'-> FAISS id=41   -> SQL: Hereditary 2018, note 7.3         ✅
+'Alien'     -> FAISS id=31   -> SQL: Alien 1979, note 8.5              ✅
+```
+
+**Vérifier :** `uv run pytest -q` (tests SQLite inchangés) puis le test de chaîne ci-dessus.

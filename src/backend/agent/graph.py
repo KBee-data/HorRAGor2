@@ -5,6 +5,7 @@ Flux : Agent (LLM) -> [Tools <-> Agent]* -> Juge -> reponse validee | correction
 le FakeEngine dans l'API, sans rien changer au contrat.
 """
 
+import asyncio
 from functools import lru_cache
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -17,6 +18,7 @@ from backend.agent.prompts import SYSTEM_PROMPT
 from backend.agent.state import AgentState
 from backend.agent.tools_registry import TOOLS
 from backend.config import settings
+from backend.contracts.schemas import ChatRequest, ChatResponse
 
 MAX_RETRIES = 2
 
@@ -83,3 +85,33 @@ def build_graph():
     graph.add_edge("tools", "agent")
     graph.add_conditional_edges("judge", _route_from_judge, {"agent": "agent", END: END})
     return graph.compile()
+
+
+def _sources(state: AgentState) -> list[str]:
+    """Tracabilite : les outils reellement appeles pendant le parcours."""
+    names = [
+        tc["name"]
+        for m in state["messages"]
+        for tc in (getattr(m, "tool_calls", None) or [])
+    ]
+    return sorted(set(names))
+
+
+class AgentGraph:
+    """Implemente `contracts.interfaces.AgentEngine` en enveloppant le graphe ReAct + Juge."""
+
+    def __init__(self):
+        self._graph = build_graph()
+
+    async def run(self, req: ChatRequest) -> ChatResponse:
+        # Le graphe (LLM Ollama + tools) est synchrone et bloquant : on l'execute dans un
+        # thread pour NE PAS geler la boucle d'evenements de l'API (critere "pas de gel").
+        state = await asyncio.to_thread(
+            self._graph.invoke,
+            {"messages": [HumanMessage(content=req.message)], "retries": 0},
+        )
+        return ChatResponse(
+            answer=state["messages"][-1].content or "",
+            sources=_sources(state),
+            verdict=state.get("verdict"),
+        )

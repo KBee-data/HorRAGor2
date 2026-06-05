@@ -5,6 +5,12 @@ POURQUOI pydantic-settings (et pas os.getenv partout) :
 - chargement depuis .env, donc AUCUN secret ecrit en dur dans le code ;
 - un seul objet `settings` importable partout = une seule source de verite.
 
+STRATEGIE secrets vs reglages :
+- SECRETS (cles, URLs privees) -> valeur UNIQUEMENT dans .env. Ici, defaut vide.
+- REGLAGES non sensibles (port, modeles, host...) -> leur valeur par defaut vit
+  ICI (source unique). Le .env ne sert qu'a SURCHARGER un defaut au besoin ;
+  inutile donc de tous les redeclarer dans .env (sinon duplication).
+
 Exigence du PDF (Encapsulation des acces Supabase) : les cles et l'init du client
 Supabase sont CONFINEES au Back-End. C'est ici qu'elles vivent, jamais cote Front.
 """
@@ -23,7 +29,8 @@ class Settings(BaseSettings):
     # extra="ignore" : on tolere des variables .env non listees ici sans planter.
     model_config = SettingsConfigDict(env_file=_PROJECT_ROOT / ".env", extra="ignore")
 
-    # --- Supabase (confine au Back-End) ---
+    # --- Supabase : SECRETS (confines au Back-End) ---
+    # Defaut vide : la vraie valeur DOIT etre fournie via .env (jamais commitee).
     supabase_url: str = ""
     supabase_key: str = ""
 

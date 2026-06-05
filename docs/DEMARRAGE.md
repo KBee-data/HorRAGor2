@@ -25,6 +25,10 @@ ollama pull nomic-embed-text
 
 # 4. Préparer la config locale (le .env n'est jamais commité)
 cp .env.example .env
+#    -> Remplir UNIQUEMENT les secrets (SUPABASE_URL, SUPABASE_KEY).
+#       Le reste (port, modèles...) a déjà un défaut dans src/backend/config.py :
+#       n'ajouter une ligne dans .env QUE pour surcharger un défaut.
+#       Ex. si le port 8000 est déjà pris : décommenter API_PORT=8001 et API_BASE_URL.
 
 # 5. Vérifier que tout marche
 uv run pytest -q          # doit afficher "6 passed"

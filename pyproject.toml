@@ -26,6 +26,7 @@ dev = [
 horragor-api = "backend.api.main:run"
 horragor-ingest = "backend.data.ingest:main"
 horragor-faiss = "backend.data.build_faiss:main"
+horragor-search = "backend.data.search_faiss:main"
 
 [build-system]
 requires = ["hatchling"]

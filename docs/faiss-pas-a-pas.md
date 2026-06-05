@@ -103,3 +103,37 @@ des 33 961 ≈ **~16 min** (ajustable via `workers`). Index + mapping écrits da
 étapes suivantes, l'index de 500 titres déjà présent suffit.
 
 **Vérifier :** `uv run pytest -q tests/test_faiss.py`.
+
+---
+
+## Étape 4 — Tool `validate_film` + seuil
+
+**But :** exposer le routeur sous la forme attendue par l'agent —
+`validate_film(title) -> FilmRef | None`.
+
+**Ce que je fais :**
+- `src/backend/tools/faiss_tool.py` :
+  - `validate_film(title)` : normalise → `embed_text` → `search_vector(k=1)` → compare au
+    **seuil** `settings.faiss_score_threshold` (0.75). `>=` seuil → `FilmRef(id, title)` ;
+    sinon `None`.
+  - `set_index(index)` / `_get_index()` : singleton de module — l'index est injecté au
+    démarrage de l'API (étape 5) ou chargé paresseusement depuis le disque.
+- `tests/test_faiss_tool.py` : index injecté + `embed_text` moqué → match (score 1.0) et
+  rejet sous le seuil (~0.707). Aucun appel Ollama.
+
+**Pourquoi ces choix :**
+- *Singleton injectable* : on charge l'index UNE fois et tout le monde le partage (perf).
+- *Seuil* : transforme une similarité en décision binaire « existe / n'existe pas ».
+
+**Essai réel (index de 500) :**
+```
+'the mortuary assistant'           -> id=2 'The Mortuary Assistant'
+'SCREAM 7'                         -> id=8 'Scream 7'           # insensible à la casse
+'un film qui n existe pas du tout' -> None
+```
+
+**Calibrer le seuil :** si on voit des faux positifs (un film renvoyé pour un titre absent),
+augmenter `FAISS_SCORE_THRESHOLD` ; si des variantes légitimes sont ratées, le baisser.
+À affiner sur l'index complet, avec de vrais exemples utilisateurs.
+
+**Vérifier :** `uv run pytest -q tests/test_faiss_tool.py`.

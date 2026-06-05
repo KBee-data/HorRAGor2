@@ -9,12 +9,19 @@ Exigence du PDF (Encapsulation des acces Supabase) : les cles et l'init du clien
 Supabase sont CONFINEES au Back-End. C'est ici qu'elles vivent, jamais cote Front.
 """
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Racine du projet : src/backend/config.py -> parents[2] = racine du depot.
+# POURQUOI : ancrer .env a la racine le rend lisible quel que soit le dossier
+# depuis lequel on lance la commande (sinon .env n'est cherche que dans le CWD).
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
     # extra="ignore" : on tolere des variables .env non listees ici sans planter.
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_PROJECT_ROOT / ".env", extra="ignore")
 
     # --- Supabase (confine au Back-End) ---
     supabase_url: str = ""

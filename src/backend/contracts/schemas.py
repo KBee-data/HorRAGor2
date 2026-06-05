@@ -36,12 +36,13 @@ class FilmMetadata(BaseModel):
 
     id: int
     title: str
-    director: str | None = None
-    release_year: int | None = None
-    genre: str | None = None
-    rating: float | None = None  # note moyenne
-    cast: list[str] = Field(default_factory=list)  # casting
-    synopsis: str | None = None
+    tmdb_id: int | None = None  # identifiant TMDB (sert a enrichir realisateur/casting)
+    director: str | None = None  # absent de la base -> enrichi via TMDB
+    release_year: int | None = None  # derive de movies.release_date
+    genres: list[str] = Field(default_factory=list)  # jointure movie_genres (multi-genres)
+    rating: float | None = None  # note 0-10 (imdb/tmdb) issue de la table ratings
+    cast: list[str] = Field(default_factory=list)  # casting -> enrichi via TMDB
+    synopsis: str | None = None  # movies.overview
 
 
 class ChatResponse(BaseModel):

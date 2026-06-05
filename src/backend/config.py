@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""
 
+    # --- TMDB : enrichissement realisateur/casting (absents de la base) ---
+    # Token v4 (Bearer), confine au Back-End. Si vide, l'enrichissement est ignore
+    # (director/cast restent vides) sans casser query_movie_metadata.
+    tmdb_token: str = ""
+    tmdb_base_url: str = "https://api.themoviedb.org/3"
+
     # --- API ---
     api_host: str = "127.0.0.1"
     api_port: int = 8000

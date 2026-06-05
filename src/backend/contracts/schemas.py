@@ -36,6 +36,7 @@ class FilmMetadata(BaseModel):
 
     id: int
     title: str
+    tmdb_id: int | None = None  # identifiant TMDB (sert a enrichir realisateur/casting)
     director: str | None = None  # absent de la base -> enrichi via TMDB
     release_year: int | None = None  # derive de movies.release_date
     genres: list[str] = Field(default_factory=list)  # jointure movie_genres (multi-genres)

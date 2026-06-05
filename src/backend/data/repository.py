@@ -48,7 +48,10 @@ class SupabaseFilmRepository:
     def get_metadata(self, film_id: int) -> FilmMetadata | None:
         with self._engine.connect() as conn:
             movie = conn.execute(
-                text("select id, title, release_date, overview from movies where id = :id"),
+                text(
+                    "select id, tmdb_id, title, release_date, overview "
+                    "from movies where id = :id"
+                ),
                 {"id": film_id},
             ).first()
             if movie is None:
@@ -72,12 +75,13 @@ class SupabaseFilmRepository:
             )
         return FilmMetadata(
             id=movie.id,
+            tmdb_id=movie.tmdb_id,
             title=movie.title,
             release_year=_year_from(movie.release_date),
             genres=genres,
             rating=rating,
             synopsis=movie.overview,
-            # director / cast : enrichis via TMDB (etape 3)
+            # director / cast : enrichis via TMDB dans le tool query_movie_metadata
         )
 
     def validate_film(self, title: str) -> FilmRef | None:

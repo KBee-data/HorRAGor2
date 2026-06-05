@@ -87,3 +87,43 @@ doivent provenir de la même base, sinon on mélange les films.
 ```
 
 **Vérifier :** `uv run pytest -q` (tests SQLite inchangés) puis le test de chaîne ci-dessus.
+
+---
+
+## Étape 4 — Enrichissement TMDB (réalisateur + casting)
+
+**But :** ajouter réalisateur et casting, absents de la base, via l'API TMDB (chaque film a
+son `tmdb_id`).
+
+**Ce que je fais :**
+- `config.py` : `tmdb_token` (secret, Bearer v4) + `tmdb_base_url` ; `.env.example` documenté.
+- Contrat : `FilmMetadata.tmdb_id` ajouté ; `repository.get_metadata` le sélectionne.
+- `src/backend/data/tmdb.py` : `get_credits(tmdb_id)` → `{director, cast}` (Bearer, comme Part 1).
+- `tools/sql_tool.py` : `query_movie_metadata` enrichit director/cast via TMDB **si** un token
+  est configuré et que le film a un `tmdb_id`. **Best-effort** : un échec réseau n'empêche pas
+  la réponse (les faits issus de la base restent intacts).
+- Tests : client TMDB **mocké** ; enrichissement du tool **mocké** ; cas « sans tmdb_id » =
+  aucun appel réseau.
+
+**Pourquoi best-effort :** la fidélité des données de la base (0 % hallucination) ne doit jamais
+dépendre de la disponibilité d'une API externe.
+
+**Preuve (chaîne réelle FAISS → SQL → TMDB) :**
+```
+The Thing (1982)  -> réal. John Carpenter | casting Kurt Russell, Wilford Brimley, T.K. Carter
+Hereditary (2018) -> réal. Ari Aster      | casting Toni Collette, Alex Wolff, Gabriel Byrne
+```
+
+**Vérifier :** `uv run pytest -q tests/test_tmdb.py tests/test_sql_tool.py`.
+
+---
+
+## Récapitulatif
+
+Connecteur SQL complet (branche `feat/sql-connector`) : `get_metadata` (SQLAlchemy) →
+`query_movie_metadata` (tool) → cohérence des ids FAISS/Supabase → enrichissement TMDB.
+La chaîne **`validate_film` → `query_movie_metadata`** renvoie des métadonnées fidèles et
+complètes (année, genres, note, synopsis, réalisateur, casting).
+
+**Reste pour la brique data :** reco **pgvector** (`find_similar_horror_movies`) — en attente de
+la décision « stockage des embeddings » (cf. mémoire `part1-db-reality-and-gaps`).

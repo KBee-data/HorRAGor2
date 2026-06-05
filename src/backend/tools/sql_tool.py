@@ -7,8 +7,10 @@ Le tool ne fait que deleguer au connecteur SQL securise (SupabaseFilmRepository)
 le LLM appelle ce tool, jamais la base directement.
 """
 
+from backend.config import settings
 from backend.contracts.interfaces import FilmRepository
 from backend.contracts.schemas import FilmMetadata
+from backend.data import tmdb
 from backend.data.repository import SupabaseFilmRepository
 
 _repository: FilmRepository | None = None
@@ -28,5 +30,19 @@ def _get_repository() -> FilmRepository:
 
 
 def query_movie_metadata(film_id: int) -> FilmMetadata | None:
-    """Renvoie les metadonnees brutes du film, ou None s'il n'existe pas."""
-    return _get_repository().get_metadata(film_id)
+    """Renvoie les metadonnees du film (None s'il n'existe pas).
+
+    Enrichit realisateur/casting via TMDB si un token est configure et que le film a
+    un tmdb_id. Enrichissement **best-effort** : un echec reseau ne casse pas la reponse
+    (director/cast restent vides), les faits de la base restent intacts.
+    """
+    metadata = _get_repository().get_metadata(film_id)
+    if metadata is None:
+        return None
+    if settings.tmdb_token and metadata.tmdb_id:
+        try:
+            credits = tmdb.get_credits(metadata.tmdb_id)
+            metadata = metadata.model_copy(update=credits)
+        except Exception:  # noqa: BLE001 — enrichissement optionnel, on degrade en silence
+            pass
+    return metadata

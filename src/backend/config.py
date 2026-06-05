@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     # LLM leger compatible tool-calling (ReAct). Modifiable selon le materiel.
     llm_model: str = "llama3.2:3b"
+    # Modele du Juge (LLM-as-judge) : un AUTRE modele que l'agent (il ne doit pas juger
+    # ses propres reponses). qwen2.5:3b coexiste en VRAM avec l'agent (pas de swap).
+    judge_model: str = "qwen2.5:3b"
     # Embeddings Ollama. nomic-embed-text -> 768 dimensions.
     embedding_model: str = "nomic-embed-text"
     # Dimension du vecteur : DOIT correspondre a la colonne pgvector vector(768)

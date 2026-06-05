@@ -6,10 +6,12 @@ le FakeEngine dans l'API, sans rien changer au contrat.
 """
 
 import asyncio
+import logging
 from functools import lru_cache
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_ollama import ChatOllama
+from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
@@ -20,7 +22,19 @@ from backend.agent.tools_registry import TOOLS
 from backend.config import settings
 from backend.contracts.schemas import ChatRequest, ChatResponse
 
+logger = logging.getLogger("horragor")
+
 MAX_RETRIES = 2
+RECURSION_LIMIT = 25  # nb max de "super-pas" du graphe avant abandon
+
+
+def _as_text(content) -> str:
+    """Le contenu d'un message peut etre une chaine ou une liste de blocs -> on normalise."""
+    if isinstance(content, list):
+        return " ".join(
+            part.get("text", "") if isinstance(part, dict) else str(part) for part in content
+        ).strip()
+    return content or ""
 
 
 @lru_cache(maxsize=1)
@@ -106,12 +120,32 @@ class AgentGraph:
     async def run(self, req: ChatRequest) -> ChatResponse:
         # Le graphe (LLM Ollama + tools) est synchrone et bloquant : on l'execute dans un
         # thread pour NE PAS geler la boucle d'evenements de l'API (critere "pas de gel").
-        state = await asyncio.to_thread(
-            self._graph.invoke,
-            {"messages": [HumanMessage(content=req.message)], "retries": 0},
-        )
+        # On capture TOUTE erreur : l'API ne doit jamais renvoyer un 500 a cause de l'agent.
+        try:
+            state = await asyncio.to_thread(
+                self._graph.invoke,
+                {"messages": [HumanMessage(content=req.message)], "retries": 0},
+                {"recursion_limit": RECURSION_LIMIT},
+            )
+        except GraphRecursionError:
+            # Le petit modele a boucle sans converger.
+            logger.warning("Agent : limite de recursion atteinte pour: %r", req.message)
+            return ChatResponse(
+                answer="Desole, je n'ai pas reussi a traiter cette demande. Peux-tu la reformuler "
+                "plus simplement (par exemple en citant un seul film) ?",
+                sources=[],
+                verdict="error",
+            )
+        except Exception:
+            logger.exception("Agent : erreur inattendue pour: %r", req.message)
+            return ChatResponse(
+                answer="Une erreur interne est survenue. Reessaie dans un instant.",
+                sources=[],
+                verdict="error",
+            )
+
         return ChatResponse(
-            answer=state["messages"][-1].content or "",
+            answer=_as_text(state["messages"][-1].content) or "(reponse vide)",
             sources=_sources(state),
             verdict=state.get("verdict"),
         )

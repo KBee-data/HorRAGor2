@@ -137,3 +137,37 @@ augmenter `FAISS_SCORE_THRESHOLD` ; si des variantes légitimes sont ratées, le
 À affiner sur l'index complet, avec de vrais exemples utilisateurs.
 
 **Vérifier :** `uv run pytest -q tests/test_faiss_tool.py`.
+
+---
+
+## Étape 5 — Intégration runtime (chargement au démarrage de l'API)
+
+**But :** que l'index vive **en RAM** dès le démarrage de l'API, pour un routage instantané.
+
+**Ce que je fais :**
+- `src/backend/api/main.py` : un `lifespan` FastAPI qui, au démarrage, charge l'index s'il
+  existe (`TitleIndex.exists()` → `load()` → `faiss_tool.set_index()`) et journalise le nombre
+  de titres. **Dégradation propre** : si l'index n'est pas encore construit, l'API démarre
+  quand même (health, chat mocké) ; seul `validate_film` est indisponible.
+- `tests/test_startup.py` : via `TestClient` (qui déclenche le lifespan), l'API démarre et
+  `/health` répond — que l'index soit présent ou non (CI-safe).
+
+**Pourquoi ce choix :**
+- *Chargement unique au boot* : pas de coût de chargement à chaque requête (≠ lazy par appel).
+- *Tolérance à l'absence d'index* : l'API reste utilisable pendant que la base/l'index se montent.
+
+**Preuve :** avant démarrage `index = None` ; après lifespan `index injecté = True -> 500 titres`.
+
+**Vérifier :** `uv run pytest -q tests/test_startup.py`.
+
+---
+
+## Récapitulatif
+
+Pipeline FAISS complet et testé (branche `feat/faiss-index`, un commit par étape) :
+`embed.py` (Ollama) → `titles.py` (source) → `faiss_index.py` (build/search/persist) →
+`faiss_tool.validate_film` (seuil) → chargement au démarrage de l'API.
+
+**Reste à faire plus tard :** build complet (`uv run horragor-faiss`, ~16 min), calibrage fin
+du seuil sur l'index complet, et bascule de la source des titres vers Supabase (quand la
+décision de connexion sera tranchée — cf. mémoire `part1-db-reality-and-gaps`).

@@ -1,12 +1,35 @@
 """Tool 3 — scrape_detailed_synopsis : enrichissement a la demande (Wikipedia).
 
-POURQUOI un declenchement STRICTEMENT selectif : le scraping (Selenium/Requests)
-est lent et gourmand en contexte. On ne l'active que si l'utilisateur demande des
-details/anecdotes absents de la base SQL, afin d'economiser la fenetre de contexte.
+POURQUOI un declenchement STRICTEMENT selectif : le scraping est lent et gourmand en
+contexte. On ne l'active que si l'utilisateur demande des details/anecdotes absents de
+la base SQL, afin d'economiser la fenetre de contexte.
+
+Implementation via l'API REST de Wikipedia (summary) plutot que Selenium : c'est plus
+rapide, sans navigateur, et renvoie directement l'extrait de l'article.
 """
+
+import httpx
+
+_WIKI_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+# Wikipedia exige un User-Agent identifiant l'application.
+_HEADERS = {"User-Agent": "HorRAGor2/0.1 (projet pedagogique)"}
 
 
 def scrape_detailed_synopsis(title: str) -> str | None:
-    """Renvoie un synopsis detaille depuis Wikipedia, ou None si introuvable."""
-    # TODO (temps 2) : scraping cible de la page Wikipedia du film
-    raise NotImplementedError
+    """Renvoie l'extrait Wikipedia du film, ou None si introuvable / ambigu."""
+    try:
+        resp = httpx.get(
+            _WIKI_SUMMARY + title.replace(" ", "_"),
+            headers=_HEADERS,
+            timeout=15,
+            follow_redirects=True,
+        )
+    except httpx.HTTPError:
+        return None
+    if resp.status_code != 200:
+        return None
+    data = resp.json()
+    # Page d'homonymie -> pas un synopsis exploitable.
+    if data.get("type") == "disambiguation":
+        return None
+    return data.get("extract") or None

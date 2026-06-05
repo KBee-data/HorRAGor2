@@ -171,3 +171,30 @@ Pipeline FAISS complet et testé (branche `feat/faiss-index`, un commit par éta
 **Reste à faire plus tard :** build complet (`uv run horragor-faiss`, ~16 min), calibrage fin
 du seuil sur l'index complet, et bascule de la source des titres vers Supabase (quand la
 décision de connexion sera tranchée — cf. mémoire `part1-db-reality-and-gaps`).
+
+---
+
+## Build complet (catalogue réel)
+
+`uv run horragor-faiss` sur l'ensemble : **33 961 titres en 97 s** (~350/s) — bien plus rapide
+que l'extrapolation des 500 (le cold-start dominait le petit échantillon). Index dans
+`faiss_index/` (gitignoré).
+
+**Test sur des classiques (seuil 0,75) :**
+```
+'The Thing'  -> 1.000 (x2 : doublons dans le catalogue)
+'alien'      -> 1.000 Alien | 0.915 Aliens | 0.825 The Alien Within
+'hereditary' -> 1.000 Hereditary
+'scream'     -> 1.000 (plusieurs films "Scream")
+'nosferatu'  -> 1.000 + variantes
+'the shining'-> 1.000 (id 28316)
+film inexistant -> 0.662 max -> rejeté (None)
+```
+
+**Enseignements de calibration :**
+- Séparation toujours nette : vrais titres ~1.0, requêtes absentes ≤ ~0.66 → **seuil 0,75 OK**.
+- Le catalogue contient des **doublons** (plusieurs "Scream", deux "The Thing") : à l'usage,
+  `validate_film` renvoie le plus proche ; on dédupliquera/choisira via le connecteur SQL.
+- **Limite** : une faute lourde sur un vrai titre peut passer sous le seuil — ex. `the shinning`
+  (double n) ne matche pas, alors que `the shining` donne 1.000. Mitigation possible plus tard :
+  repli `rapidfuzz` (distance d'édition) en complément de la similarité sémantique.

@@ -38,3 +38,25 @@ rating=7.3 (imdb) | synopsis="When Ellen, the matriarch..." | director=None cast
 ```
 
 **Vérifier :** `uv run pytest -q tests/test_repository.py`.
+
+---
+
+## Étape 2 — Tool `query_movie_metadata`
+
+**But :** exposer le connecteur sous la forme appelée par l'agent.
+
+**Ce que je fais :**
+- `src/backend/tools/sql_tool.py` : `query_movie_metadata(film_id) -> FilmMetadata | None`
+  délègue au `SupabaseFilmRepository` (singleton injectable via `set_repository`).
+- `tests/test_sql_tool.py` : repository **factice** injecté (pas de base réelle).
+
+**⚠️ Constat critique (cohérence des `id`) :**
+Test réel : `query_movie_metadata(6050)` renvoie « Penumbra » côté Supabase, alors que l'index
+FAISS (bâti sur le **SQLite local**) associe id 6050 à « The Thing ». Les `id` **diffèrent**
+entre SQLite et Supabase (ex. « The Thing » = id 2457 sur Supabase, 6050 en local).
+
+→ La chaîne `validate_film (FAISS) → id → query_movie_metadata (SQL)` renverrait le **mauvais
+film**. **Correctif obligatoire** : reconstruire l'index FAISS depuis **Supabase** (même source
+que les métadonnées) pour que les `id` soient cohérents. C'est l'étape suivante.
+
+**Vérifier :** `uv run pytest -q tests/test_sql_tool.py`.

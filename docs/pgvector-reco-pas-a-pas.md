@@ -51,3 +51,23 @@ de l'instance partagée. FK + `on delete cascade` = cohérence avec le catalogue
 suffit pour développer/tester l'étape 3.
 
 **Vérifier :** `uv run horragor-embeddings --limit 500`.
+
+---
+
+## Étape 3 — `recommend_similar` (repository)
+
+**But :** la recherche de similarité cosinus elle-même.
+
+**Ce que je fais :**
+- `repository.SupabaseFilmRepository.recommend_similar(film_id, k=5)` :
+  `... order by e.embedding <=> (select embedding from movie_embeddings where movie_id = :id) limit :k`
+  — le vecteur de la graine reste **dans la base** (sous-requête) → aucun transfert ni
+  adaptateur Python à configurer. Exclut le film lui-même ; renvoie `[]` si pas d'embedding.
+
+**Pourquoi la sous-requête :** plus simple et robuste qu'un binding de vecteur côté Python ;
+l'index HNSW accélère le `<=>`.
+
+**Vérifié (sous-ensemble) :** graine « Send Help » → *Predator Island, Blood House,
+Satan's Triangle, Man Eaters, Scarce* (horreur/survie cohérents) ; film sans embedding → `[]`.
+
+**Vérifier :** test d'intégration (cf. étape 4) ou appel direct `recommend_similar(id)`.

@@ -59,13 +59,22 @@ def _route_from_agent(state: AgentState) -> str:
     return "tools" if getattr(last, "tool_calls", None) else "judge"
 
 
+def _original_question(messages) -> str:
+    """Le premier message humain = la question de l'utilisateur (≠ messages de correction)."""
+    for m in messages:
+        if isinstance(m, HumanMessage):
+            return _as_text(m.content)
+    return ""
+
+
 def _judge_node(state: AgentState) -> dict:
-    """Audit deterministe de la reponse finale (cf. judge.verify)."""
+    """Audit par le Juge LLM (cf. judge.evaluate)."""
     messages = state["messages"]
-    answer = messages[-1].content or ""
+    answer = _as_text(messages[-1].content)
     tool_outputs = [str(m.content) for m in messages if isinstance(m, ToolMessage)]
 
-    if judge.verify(answer, tool_outputs):
+    valid, reason = judge.evaluate(_original_question(messages), answer, tool_outputs)
+    if valid:
         return {"verdict": "valid"}
 
     retries = state.get("retries", 0)
@@ -75,8 +84,8 @@ def _judge_node(state: AgentState) -> dict:
 
     correction = HumanMessage(
         content=(
-            "Ta reponse cite une annee absente des donnees des outils. Reprends en "
-            "utilisant UNIQUEMENT les valeurs renvoyees par les outils, ou dis que tu ne sais pas."
+            f"Un juge a rejete ta reponse (raison : {reason}). Corrige en t'appuyant "
+            "UNIQUEMENT sur les donnees des outils, ou dis que tu ne sais pas."
         )
     )
     return {"verdict": "retry", "messages": [correction], "retries": retries + 1}

@@ -22,11 +22,17 @@ Avant tout : vérifier que `llama3.2:3b` émet de vrais `tool_calls` via `langch
   des outils **par titre** qui composent en interne les fonctions data —
   `lookup_movie`, `find_similar`, `movie_age`, `wikipedia_synopsis`. Bien plus fiable.
 
-## Étape 3 — Nœud Juge déterministe
-- `judge.verify` : toute **année** citée dans la réponse doit apparaître dans les observations
-  des outils (le fait le plus vérifiable et le plus souvent halluciné). Sinon → l'agent corrige
-  (boucle bornée `MAX_RETRIES=2`) → puis **fallback** (réponse honnête).
+## Étape 3 — Nœud Juge (LLM-as-judge)
+- `judge.evaluate` : un **LLM distinct** (`settings.judge_model` = `qwen2.5:3b`, ≠ l'agent)
+  audite la réponse finale via une **sortie structurée** (`JudgeVerdict{valid, reason}`) :
+  est-elle FIDÈLE aux données des outils et COHÉRENTE avec la question ? Sinon → l'agent corrige
+  avec la raison du juge (boucle bornée `MAX_RETRIES=2`) → puis **fallback**. Fail-open si le
+  juge tombe en erreur (il ne doit jamais casser l'agent).
 - Graphe : `agent → juge` ; verdict `retry → agent`, `valid`/`fallback → fin`.
+- **Pourquoi LLM et non déterministe** : une 1ʳᵉ version vérifiait seulement l'**année** (regex).
+  Elle laissait passer des incohérences (ex. « jason » → « Halloween a 48 ans », `valid`). Le
+  juge LLM évalue la cohérence **globale** (réalisateur, genre, identité du film) → ce cas est
+  désormais **rejeté** (`fallback`). Modèle ≠ agent : un modèle ne doit pas juger ses réponses.
 
 ## Étape 4 — AgentGraph + bascule API
 - `AgentGraph.run` (implémente `AgentEngine`) invoque le graphe dans un **thread**

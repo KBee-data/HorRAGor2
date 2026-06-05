@@ -6,7 +6,8 @@ films d'horreur, exposé via une **API FastAPI** asynchrone et une **interface d
 Stack : LangGraph · Ollama (LLM + embeddings, local) · FAISS · Supabase (SQL + pgvector) · FastAPI · Streamlit · uv.
 
 > **Prérequis IA (local, sans clé API)** : installer [Ollama](https://ollama.com), puis
-> `ollama pull llama3.2:3b` et `ollama pull nomic-embed-text` (embeddings 768 dim).
+> `ollama pull llama3.2:3b` (agent), `ollama pull qwen2.5:3b` (juge) et
+> `ollama pull nomic-embed-text` (embeddings 768 dim).
 
 ## Démarrage rapide
 

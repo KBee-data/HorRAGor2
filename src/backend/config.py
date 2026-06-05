@@ -31,6 +31,15 @@ class Settings(BaseSettings):
 
     # --- Supabase : SECRETS (confines au Back-End) ---
     # Defaut vide : la vraie valeur DOIT etre fournie via .env (jamais commitee).
+    #
+    # ACCES PRINCIPAL a la base = connection string PostgreSQL (psycopg), via SQLAlchemy.
+    # Choix impose par le brief Partie 1 ("Vous utiliserez SQLAlchemy ORM") et adapte au
+    # schema relationnel (jointures genres/ratings, operateur pgvector). Voir
+    # docs/connexion-supabase.md.
+    # Ex : postgresql+psycopg://user:mdp@host:5432/postgres
+    database_url: str = ""
+    # SUPABASE_URL / SUPABASE_KEY : optionnels (API REST/Storage/Auth), PAS l'acces
+    # principal a la base relationnelle.
     supabase_url: str = ""
     supabase_key: str = ""
 

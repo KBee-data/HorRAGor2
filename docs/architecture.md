@@ -202,6 +202,11 @@ HorRAGor2/
 
 - [x] **LLM** : Ollama local `llama3.2:3b` (tool-calling, léger, sans clé API).
 - [x] **Embeddings** : Ollama `nomic-embed-text` → **768 dim** (cohérent FAISS + PGVector).
+- [x] **Connexion BDD** : **SQLAlchemy + `DATABASE_URL`** (psycopg), pas le SDK REST.
+  Continuité Partie 1 (qui impose SQLAlchemy ORM) + schéma relationnel. Voir
+  [`connexion-supabase.md`](connexion-supabase.md).
+- [ ] **Stockage des embeddings** synopsis (table dédiée vs colonne) — pour la reco pgvector.
+- [ ] **Réalisateur/casting** absents de la base (enrichir TMDB vs Wikipédia vs retirer).
 - [ ] Répartition des **rôles** (application / API / BDD-FAISS) + boucle ReAct commune.
 - [ ] Schéma de données définitif (au reçu du **golden data**).
 

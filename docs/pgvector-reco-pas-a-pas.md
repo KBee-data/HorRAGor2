@@ -71,3 +71,30 @@ l'index HNSW accélère le `<=>`.
 Satan's Triangle, Man Eaters, Scarce* (horreur/survie cohérents) ; film sans embedding → `[]`.
 
 **Vérifier :** test d'intégration (cf. étape 4) ou appel direct `recommend_similar(id)`.
+
+---
+
+## Étape 4 — Tool `find_similar_horror_movies`
+
+**But :** exposer la reco sous la forme appelée par l'agent.
+
+**Ce que je fais :**
+- `tools/pgvector_tool.py` : `find_similar_horror_movies(film_id, k=5)` délègue au repository
+  (singleton injectable, comme `sql_tool`).
+- `tests/test_pgvector_tool.py` : unitaire avec **repository factice** (CI-safe) + test
+  d'**intégration** réel `skipif` sans `DATABASE_URL`.
+
+**Vérifié :** 27 tests verts (intégration incluse).
+
+---
+
+## Récapitulatif
+
+Reco pgvector complète (branche `feat/pgvector-reco`) : extension + table `movie_embeddings`
+→ génération des embeddings de synopsis → `recommend_similar` (cosinus `<=>`, index HNSW) →
+tool `find_similar_horror_movies`.
+
+**Reste :** lancer le **build complet** (`uv run horragor-embeddings`, ~1 min) pour couvrir les
+31 284 films (le sous-ensemble de 500 a servi à valider). Ensuite, plus aucun bloqueur côté
+brique data : tous les tools data sont prêts (`validate_film`, `query_movie_metadata`,
+`find_similar_horror_movies`, `calculate_movie_age`).

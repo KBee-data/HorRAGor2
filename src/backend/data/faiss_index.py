@@ -14,14 +14,13 @@ sans Ollama.
 """
 
 import json
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import faiss
 import numpy as np
 
 from backend.config import _PROJECT_ROOT, settings
-from backend.data.embed import embed_texts
+from backend.data.embed import embed_texts_concurrent
 
 
 def normalize_title(title: str) -> str:
@@ -39,16 +38,6 @@ def _resolve_dir(index_dir: str | None) -> Path:
     raw = index_dir or settings.faiss_index_dir
     p = Path(raw)
     return p if p.is_absolute() else (_PROJECT_ROOT / p)
-
-
-def _embed_concurrent(texts, embed_fn, workers, chunk_size):
-    """Embedde `texts` via plusieurs requetes paralleles (ordre preserve)."""
-    chunks = [texts[i : i + chunk_size] for i in range(0, len(texts), chunk_size)]
-    vectors: list[list[float]] = []
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        for chunk_vecs in ex.map(embed_fn, chunks):  # map preserve l'ordre
-            vectors.extend(chunk_vecs)
-    return vectors
 
 
 class TitleIndex:
@@ -71,12 +60,12 @@ class TitleIndex:
         return cls(index, list(ids), list(titles))
 
     @classmethod
-    def build_from_pairs(cls, pairs, embed_fn=embed_texts, workers=10, chunk_size=32):
+    def build_from_pairs(cls, pairs, workers=10, chunk_size=32):
         """Construit l'index a partir de couples (id, title)."""
         ids = [int(i) for i, _ in pairs]
         titles = [str(t) for _, t in pairs]
         normalized = [normalize_title(t) for t in titles]
-        vectors = _embed_concurrent(normalized, embed_fn, workers, chunk_size)
+        vectors = embed_texts_concurrent(normalized, workers, chunk_size)
         return cls.from_vectors(vectors, ids, titles)
 
     # --- Recherche ------------------------------------------------------------

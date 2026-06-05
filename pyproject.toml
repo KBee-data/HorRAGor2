@@ -15,6 +15,7 @@ dependencies = [
     "numpy>=2.4.6",
     "sqlalchemy>=2.0.50",
     "psycopg[binary]>=3.3.4",
+    "pgvector>=0.4.2",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +30,8 @@ horragor-api = "backend.api.main:run"
 horragor-ingest = "backend.data.ingest:main"
 horragor-faiss = "backend.data.build_faiss:main"
 horragor-search = "backend.data.search_faiss:main"
+horragor-pgvector-setup = "backend.data.setup_pgvector:main"
+horragor-embeddings = "backend.data.build_embeddings:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -51,6 +51,15 @@ class Settings(BaseSettings):
     # ET a l'index FAISS. La changer impose de re-embedder toutes les donnees.
     embedding_dim: int = 768
 
+    # --- FAISS (routeur de validation de titres) ---
+    # Source des titres pour le DEV : SQLite de Part 1 (en attendant Supabase).
+    # Chemin relatif resolu depuis la racine du projet ; surchargeable via .env.
+    titles_db_path: str = "../HorRAGor1/data/horragor.db"
+    # Dossier de persistance de l'index (gitignore : voir faiss_index/ dans .gitignore).
+    faiss_index_dir: str = "faiss_index"
+    # Seuil de similarite cosinus pour decider "ce film existe" (a calibrer).
+    faiss_score_threshold: float = 0.75
+
 
 # Instancie une fois au chargement du module : importer `settings` suffit partout.
 settings = Settings()

@@ -1,15 +1,37 @@
-"""Construction de l'index FAISS des TITRES (memoire ephemere, en RAM).
+"""Construction de l'index FAISS des titres (job offline).
 
-Exigence du PDF : l'index ne contient QUE les couples [Nom du film : ID]. Il sert
-de "routeur" ultra-rapide pour valider l'existence d'un film et recuperer son ID
-AVANT toute action lourde (SQL, scraping...).
+Lancement :
+    uv run horragor-faiss            # build complet
+    uv run horragor-faiss --limit 500   # sous-ensemble (validation rapide)
 
-POURQUOI FAISS en RAM (et pas une requete SQL a chaque fois) : la validation
-d'identifiant devient quasi instantanee et n'interroge pas la base principale.
-La recherche semantique de CONTENU, elle, reste du ressort de pgvector (pas FAISS).
+Etapes : load_titles() -> embeddings concurrents -> IndexFlatIP -> persistance disque.
+On persiste l'index (faiss_index/) pour le recharger instantanement au demarrage de
+l'API, sans re-embedder a chaque fois.
 """
 
+import argparse
+import time
 
-def build_index() -> None:
-    # TODO : encoder les titres, construire et sauvegarder l'index FAISS
-    raise NotImplementedError
+from backend.data.faiss_index import TitleIndex
+from backend.data.titles import load_titles
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Construit l'index FAISS des titres.")
+    parser.add_argument("--limit", type=int, default=None, help="limiter le nombre de titres")
+    args = parser.parse_args()
+
+    pairs = load_titles()
+    if args.limit:
+        pairs = pairs[: args.limit]
+
+    print(f"{len(pairs)} titres a embedder...")
+    t0 = time.perf_counter()
+    index = TitleIndex.build_from_pairs(pairs)
+    out = index.save()
+    dt = time.perf_counter() - t0
+    print(f"✅ Index construit ({len(index)} titres) en {dt:.1f}s -> {out}")
+
+
+if __name__ == "__main__":
+    main()

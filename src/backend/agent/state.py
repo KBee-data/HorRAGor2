@@ -6,7 +6,7 @@ POURQUOI ces champs :
 - `retries` : nombre de corrections deja demandees par le Juge (boucle bornee).
 """
 
-from typing import Annotated, TypedDict
+from typing import Annotated, NotRequired, TypedDict
 
 from langgraph.graph.message import add_messages
 
@@ -14,3 +14,5 @@ from langgraph.graph.message import add_messages
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
     retries: int
+    # Verdict du Juge ("valid" / "retry" / "fallback"), pose en fin de parcours.
+    verdict: NotRequired[str]

@@ -1,31 +1,25 @@
-"""Connecteur SQL securise vers Supabase.
+"""Engine SQLAlchemy partage vers la base (Supabase PostgreSQL via DATABASE_URL).
 
-REGLE D'OR (PDF) : le LLM ne genere JAMAIS de SQL brut. Tout passe par des
-fonctions Python typees, ici. Cette classe implementera le contrat `FilmRepository`.
+POURQUOI un engine unique mis en cache : SQLAlchemy gere un pool de connexions ;
+on ne recree pas l'engine a chaque requete. `pool_pre_ping` revalide la connexion
+avant usage (le pooler Supabase ferme les connexions inactives) — comme en Partie 1.
 
-POURQUOI une classe (et pas des fonctions libres) : encapsule le client Supabase
-(initialise une seule fois avec les cles confinees au Back-End) et expose une API
-stable que les tools consomment sans connaitre les details SQL.
+Choix de connexion : SQLAlchemy + connection string PostgreSQL (psycopg), conformement
+au brief Partie 1. Voir docs/connexion-supabase.md.
 """
 
-from backend.contracts.schemas import FilmMetadata, FilmRef
+from functools import lru_cache
+
+from sqlalchemy import Engine, create_engine
+
+from backend.config import settings
 
 
-class SupabaseFilmRepository:
-    """Implementation reelle de FilmRepository (a completer par C)."""
-
-    def __init__(self) -> None:
-        # TODO : initialiser le client Supabase depuis backend.config.settings
-        ...
-
-    def validate_film(self, title: str) -> FilmRef | None:
-        # TODO : valider via l'index FAISS (titres) -> renvoyer l'id
-        raise NotImplementedError
-
-    def get_metadata(self, film_id: int) -> FilmMetadata:
-        # TODO : SELECT parametre sur la table films (requete prete, jamais generee par le LLM)
-        raise NotImplementedError
-
-    def recommend_similar(self, film_id: int, k: int = 5) -> list[FilmRef]:
-        # TODO : recherche de similarite cosinus via pgvector
-        raise NotImplementedError
+@lru_cache(maxsize=1)
+def get_engine() -> Engine:
+    if not settings.database_url:
+        raise RuntimeError(
+            "DATABASE_URL non defini : renseignez-le dans .env "
+            "(connection string Supabase, schema postgresql+psycopg://...)."
+        )
+    return create_engine(settings.database_url, pool_pre_ping=True, future=True)

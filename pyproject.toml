@@ -16,6 +16,8 @@ dependencies = [
     "sqlalchemy>=2.0.50",
     "psycopg[binary]>=3.3.4",
     "pgvector>=0.4.2",
+    "langgraph>=1.2.4",
+    "langchain-ollama>=1.1.0",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +34,7 @@ horragor-faiss = "backend.data.build_faiss:main"
 horragor-search = "backend.data.search_faiss:main"
 horragor-pgvector-setup = "backend.data.setup_pgvector:main"
 horragor-embeddings = "backend.data.build_embeddings:main"
+horragor-graph = "backend.agent.export_graph:main"
 
 [build-system]
 requires = ["hatchling"]

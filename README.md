@@ -27,9 +27,10 @@ uv run streamlit run src/front/streamlit/app.py
 > ⚠️ Lancer Streamlit **depuis la racine** du projet : c'est là que se trouve
 > `.streamlit/config.toml` (thème sombre « Chat Horror ») que Streamlit applique au démarrage.
 
-> Dès maintenant, l'API et l'UI fonctionnent grâce à un **faux moteur**
-> (`backend/mocks/fake_engine.py`) qui renvoie une réponse de test — sans LLM ni base.
-> Le vrai agent LangGraph arrivera au temps 2.
+> L'API `/chat` est branchée sur le **vrai agent** LangGraph (boucle ReAct + Juge
+> déterministe + tools FAISS/SQL/pgvector/Wikipedia). Prérequis : Ollama lancé, base
+> Supabase accessible (`DATABASE_URL`) et index FAISS construit (`uv run horragor-faiss`).
+> Schéma du graphe : `uv run horragor-graph` (Mermaid) ou `docs/graphe_agent_genere.mmd`.
 
 ## Qualité
 

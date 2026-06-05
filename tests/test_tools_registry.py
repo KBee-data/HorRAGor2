@@ -5,13 +5,7 @@ from backend.agent.tools_registry import TOOLS
 
 def test_registry_exposes_expected_tools():
     names = {t.name for t in TOOLS}
-    assert names == {
-        "validate_film",
-        "query_movie_metadata",
-        "find_similar_horror_movies",
-        "calculate_movie_age",
-        "scrape_detailed_synopsis",
-    }
+    assert names == {"lookup_movie", "find_similar", "movie_age", "wikipedia_synopsis"}
 
 
 def test_tools_have_descriptions():

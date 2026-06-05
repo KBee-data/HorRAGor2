@@ -89,5 +89,30 @@ class SupabaseFilmRepository:
         raise NotImplementedError("Utiliser backend.tools.faiss_tool.validate_film.")
 
     def recommend_similar(self, film_id: int, k: int = 5) -> list[FilmRef]:
-        # Necessite la decision "stockage des embeddings" (pgvector) — a venir.
-        raise NotImplementedError("Reco pgvector : en attente de la decision embeddings.")
+        """Renvoie les k films les plus proches par similarite cosinus (pgvector).
+
+        Le vecteur du film graine reste cote base (sous-requete) : pas de transfert ni
+        d'adaptateur a configurer. `<=>` = distance cosinus. Renvoie [] si le film n'a
+        pas d'embedding (ex. synopsis absent).
+        """
+        with self._engine.connect() as conn:
+            if (
+                conn.execute(
+                    text("select 1 from movie_embeddings where movie_id = :id"),
+                    {"id": film_id},
+                ).first()
+                is None
+            ):
+                return []
+            rows = conn.execute(
+                text(
+                    "select m.id, m.title "
+                    "from movie_embeddings e join movies m on m.id = e.movie_id "
+                    "where e.movie_id <> :id "
+                    "order by e.embedding <=> "
+                    "(select embedding from movie_embeddings where movie_id = :id) "
+                    "limit :k"
+                ),
+                {"id": film_id, "k": k},
+            ).all()
+        return [FilmRef(id=r.id, title=r.title) for r in rows]

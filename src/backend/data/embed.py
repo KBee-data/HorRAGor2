@@ -11,6 +11,8 @@ Ollama expose deux endpoints d'embeddings :
 On utilise le batch (rapide pour des milliers de titres) avec repli sur le legacy.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+
 import httpx
 
 from backend.config import settings
@@ -36,6 +38,22 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 def embed_text(text: str) -> list[float]:
     """Embedde un seul texte (raccourci pour les requetes unitaires)."""
     return embed_texts([text])[0]
+
+
+def embed_texts_concurrent(
+    texts: list[str], workers: int = 10, chunk_size: int = 32
+) -> list[list[float]]:
+    """Embedde une grande liste via plusieurs requetes paralleles (ordre preserve).
+
+    Ollama parallelise sur le GPU -> bien plus rapide qu'un seul gros batch.
+    Reutilise par le build FAISS (titres) et le build des embeddings de synopsis.
+    """
+    chunks = [texts[i : i + chunk_size] for i in range(0, len(texts), chunk_size)]
+    vectors: list[list[float]] = []
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for chunk_vectors in ex.map(embed_texts, chunks):  # map preserve l'ordre
+            vectors.extend(chunk_vectors)
+    return vectors
 
 
 def _embed_batch(texts: list[str]) -> list[list[float]]:

@@ -1,37 +1,51 @@
 # HorRAGor2 — L'Agent de l'Horreur 👻
 
-Agent conversationnel RAG (LangGraph, boucle ReAct + Juge déterministe) sur une base de
-films d'horreur, exposé via une **API FastAPI** asynchrone et une **interface de chat Streamlit**.
+Agent conversationnel **RAG** (LangGraph, boucle **ReAct** + **Juge** anti-hallucination) sur une
+base de **films d'horreur**, exposé via une **API FastAPI** asynchrone et une **interface de chat
+Streamlit**. 100 % local (Ollama) — aucune clé API requise pour l'IA.
 
-Stack : LangGraph · Ollama (LLM + embeddings, local) · FAISS · Supabase (SQL + pgvector) · FastAPI · Streamlit · uv.
+Stack : LangGraph · Ollama (LLM + Juge + embeddings, local) · FAISS · Supabase (SQL + pgvector)
+· TMDB · FastAPI · Streamlit · uv.
 
-> **Prérequis IA (local, sans clé API)** : installer [Ollama](https://ollama.com), puis
-> `ollama pull llama3.2:3b` (agent), `ollama pull qwen2.5:3b` (juge) et
-> `ollama pull nomic-embed-text` (embeddings 768 dim).
+## Prérequis
 
-## Démarrage rapide
+- [uv](https://docs.astral.sh/uv/) et [Ollama](https://ollama.com) installés.
+- Modèles Ollama :
+  ```bash
+  ollama pull llama3.2:3b      # agent (ReAct)
+  ollama pull qwen2.5:3b       # juge (anti-hallucination)
+  ollama pull nomic-embed-text # embeddings (768 dim)
+  ```
+- Une base **Supabase** (PostgreSQL) accessible — schéma issu de la Partie 1.
+
+## Installation & configuration
 
 ```bash
-# 1. Installer les dépendances (crée le venv)
 uv sync --extra dev
-
-# 2. Copier la config et la remplir
 cp .env.example .env
-
-# 3. Lancer l'API (terminal 1)
-uv run horragor-api          # http://127.0.0.1:8000  (/health, /chat)
-
-# 4. Lancer l'interface (terminal 2, DEPUIS LA RACINE du projet)
-uv run streamlit run src/front/streamlit/app.py
 ```
 
-> ⚠️ Lancer Streamlit **depuis la racine** du projet : c'est là que se trouve
-> `.streamlit/config.toml` (thème sombre « Chat Horror ») que Streamlit applique au démarrage.
+À renseigner dans `.env` :
+- `DATABASE_URL` — connexion Supabase (`postgresql+psycopg://…`), **requise**.
+- `TMDB_TOKEN` — token v4 TMDB, **optionnel** (enrichit réalisateur + casting).
 
-> L'API `/chat` est branchée sur le **vrai agent** LangGraph (boucle ReAct + Juge
-> déterministe + tools FAISS/SQL/pgvector/Wikipedia). Prérequis : Ollama lancé, base
-> Supabase accessible (`DATABASE_URL`) et index FAISS construit (`uv run horragor-faiss`).
-> Schéma du graphe : `uv run horragor-graph` (Mermaid) ou `docs/graphe_agent_genere.mmd`.
+## Préparation des données (une fois)
+
+```bash
+uv run horragor-faiss            # index FAISS des titres (routeur de validation)
+uv run horragor-pgvector-setup   # active pgvector + crée la table movie_embeddings
+uv run horragor-embeddings       # vectorise les synopsis (recommandation)
+```
+
+## Lancer l'application
+
+```bash
+# Terminal 1 — API (agent)
+uv run horragor-api
+
+# Terminal 2 — interface (DEPUIS LA RACINE, pour le thème sombre .streamlit/config.toml)
+uv run streamlit run src/front/streamlit/app.py   # -> http://localhost:8501
+```
 
 ## Qualité
 
@@ -40,52 +54,62 @@ uv run ruff check .
 uv run pytest -q
 ```
 
+## Commandes disponibles
+
+| Commande | Rôle |
+|---|---|
+| `uv run horragor-api` | Lance l'API FastAPI (`/health`, `/chat`) |
+| `uv run horragor-faiss` | Construit l'index FAISS des titres |
+| `uv run horragor-search "titre"` | Teste / calibre la recherche FAISS |
+| `uv run horragor-pgvector-setup` | Active pgvector + table d'embeddings |
+| `uv run horragor-embeddings` | Génère les embeddings de synopsis |
+| `uv run horragor-graph` | Exporte le schéma du graphe (Mermaid) |
+
 ## Structure
 
 Deux packages sous `src/` : **`front`** (interface) et **`backend`** (toute la logique métier).
 
 ```
 src/
-├── front/                 👤 A — Front-End (organisé par techno)
+├── front/                 Front-End (organisé par techno)
 │   ├── common/            ·   client HTTP partagé (réutilisable par un futur Gradio)
 │   └── streamlit/         ·   front Streamlit (app.py)
 └── backend/
-    ├── config.py          🤝 réglages centraux (.env)
-    ├── contracts/         🤝 schémas Pydantic + interfaces (figé en premier)
-    ├── mocks/             🤝 faux moteur + fixtures
-    ├── api/               👤 B — FastAPI async (/health, /chat)
-    ├── data/              👤 C — Supabase (SQL + pgvector) + index FAISS
-    ├── tools/             🤝 temps 2 — les outils de l'agent
-    └── agent/             🤝 temps 2 — boucle ReAct + Juge
+    ├── config.py          réglages centraux (.env)
+    ├── contracts/         schémas Pydantic + interfaces (le « langage commun »)
+    ├── mocks/             faux moteur + fixtures (tests / dév sans IA)
+    ├── api/               FastAPI async (/health, /chat)
+    ├── data/              Supabase (SQL + pgvector), index FAISS, TMDB
+    ├── tools/             fonctions data typées (FAISS, SQL, pgvector, Wikipédia, âge)
+    └── agent/             boucle ReAct LangGraph + Juge
 ```
 
 Le **Front** ne contient aucune logique métier : il appelle l'API en HTTP et réutilise les
-`contracts` du Back-End comme unique source de vérité sur la forme des données (PDF :
-« découplage strict »). Toutes les clés / accès Supabase sont **confinés au Back-End**.
+`contracts` du Back-End comme unique source de vérité sur la forme des données (« découplage
+strict »). Toutes les clés / accès Supabase sont **confinés au Back-End**.
 
-### Les outils de l'agent (temps 2, noms du PDF)
+### Les outils de l'agent
 
-| Outil | Fichier | Rôle |
+L'agent expose au LLM des outils **par titre** (`lookup_movie`, `find_similar`, `movie_age`,
+`wikipedia_synopsis`, dans `agent/tools_registry.py`) qui composent les fonctions data :
+
+| Fonction | Fichier | Rôle |
 |---|---|---|
-| Routeur FAISS | `tools/faiss_tool.py` | `validate_film` — valide l'existence (Nom → ID) |
-| `query_movie_metadata` | `tools/sql_tool.py` | Métadonnées (réalisateur, année, genre, note, casting) |
+| `validate_film` | `tools/faiss_tool.py` | Routeur FAISS : valide un titre → `id` |
+| `query_movie_metadata` | `tools/sql_tool.py` | Métadonnées (année, genres, note, synopsis) + TMDB |
 | `find_similar_horror_movies` | `tools/pgvector_tool.py` | Reco sémantique (pgvector, cosinus) |
-| `scrape_detailed_synopsis` | `tools/wikipedia_tool.py` | Scraping Wikipédia à la demande |
-| `calculate_movie_age` | `tools/temporal_tool.py` | Âge du film (Python natif) — **déjà implémenté** |
-| `horror_survival_simulator` | `tools/survival_tool.py` | Optionnel — simulateur ludique |
+| `scrape_detailed_synopsis` | `tools/wikipedia_tool.py` | Synopsis Wikipédia à la demande |
+| `calculate_movie_age` | `tools/temporal_tool.py` | Âge du film (Python natif) |
 
 ## Workflow Git
 
-Publication initiale (superviseur, une seule fois — dépôt **public**, projet de cours) :
-
-```bash
-gh repo create horragor2 --public --source=. --push
-```
-
-Puis : branches `feat/<brique>-<sujet>` → Pull Request → review du superviseur → merge sur `main`.
+Branches `feat/<brique>-<sujet>` → Pull Request → review → merge sur `main`.
 On ne modifie pas `backend/contracts/` sans prévenir l'équipe.
 
 > Dépôt public : aucun secret ne doit être commité. Les clés vivent dans `.env`
 > (ignoré par git) ; seul `.env.example`, sans valeurs, est versionné.
 
-Architecture détaillée et diagrammes : [`docs/`](docs/).
+## Documentation
+
+Architecture, schéma du graphe et **journaux de développement** (FAISS, connecteur SQL,
+reco pgvector, agent) : [`docs/`](docs/). Support de pitch : [`docs/prez/`](docs/prez/).

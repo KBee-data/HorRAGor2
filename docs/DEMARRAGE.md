@@ -1,116 +1,94 @@
-# Guide de démarrage — pas à pas (équipe de 3, débutants)
+# Guide de démarrage — installer, lancer, contribuer
 
-Ce guide donne l'ordre exact des étapes pour démarrer le projet et travailler à 3 sans se
-bloquer. Dépôt : `https://github.com/os974/horragor2`.
-
-> Convention de branches : `feat/<brique>-<sujet>` (ex. `feat/front-affichage`).
-> Règle d'or : on ne modifie pas `src/backend/contracts/` sans prévenir l'équipe.
+Pas à pas pour mettre en route le projet et travailler à plusieurs.
+Dépôt : `https://github.com/os974/horragor2`. Vue d'ensemble : [`../README.md`](../README.md).
 
 ---
 
-## 🟢 Phase commune — à faire UNE fois par chacun
+## 1. Installation (une fois par poste)
 
 ```bash
-# 1. Récupérer le projet
 git clone https://github.com/os974/horragor2.git
 cd horragor2
-
-# 2. Installer l'environnement Python (crée le .venv)
 uv sync --extra dev
 
-# 3. Installer l'IA locale (Ollama) puis tirer les modèles
-#    -> https://ollama.com
-ollama pull llama3.2:3b
-ollama pull nomic-embed-text
+# IA locale (Ollama) : https://ollama.com
+ollama pull llama3.2:3b       # agent (ReAct)
+ollama pull qwen2.5:3b        # juge (anti-hallucination)
+ollama pull nomic-embed-text  # embeddings (768 dim)
 
-# 4. Préparer la config locale (le .env n'est jamais commité)
-cp .env.example .env
-#    -> Remplir UNIQUEMENT les secrets (SUPABASE_URL, SUPABASE_KEY).
-#       Le reste (port, modèles...) a déjà un défaut dans src/backend/config.py :
-#       n'ajouter une ligne dans .env QUE pour surcharger un défaut.
-#       Ex. si le port 8000 est déjà pris : décommenter API_PORT=8001 et API_BASE_URL.
-
-# 5. Vérifier que tout marche
-uv run pytest -q          # doit afficher "6 passed"
+cp .env.example .env          # le .env n'est JAMAIS commité
 ```
 
----
+À renseigner dans `.env` :
+- `DATABASE_URL` — connexion Supabase (`postgresql+psycopg://…`), **requise** ;
+- `TMDB_TOKEN` — token v4 TMDB, **optionnel** (réalisateur + casting).
 
-## 👤 A — Front / Streamlit
+> Les autres réglages (port, modèles…) ont un défaut dans `src/backend/config.py` :
+> n'ajouter une ligne dans `.env` QUE pour **surcharger** un défaut (ex. `API_PORT=8001`
+> si le port 8000 est déjà pris).
+
+Vérifier l'installation : `uv run pytest -q` (la suite doit être verte).
+
+## 2. Préparation des données (une fois)
 
 ```bash
-git switch main && git pull              # partir d'un main à jour
-git switch -c feat/front-affichage       # SA branche
+uv run horragor-faiss            # index FAISS des titres (routeur)
+uv run horragor-pgvector-setup   # active pgvector + table movie_embeddings
+uv run horragor-embeddings       # vectorise les synopsis (reco) — ~6 min
 ```
 
-Première tâche : lancer l'app et enrichir l'affichage.
+## 3. Lancer l'application
 
 ```bash
-# Terminal 1 : l'API (mockée pour l'instant)
+# Terminal 1 — API (agent)
 uv run horragor-api
-# Terminal 2 : l'interface (depuis la racine, pour le thème .streamlit/)
-uv run streamlit run src/front/streamlit/app.py
+# Terminal 2 — interface (DEPUIS LA RACINE, pour le thème sombre)
+uv run streamlit run src/front/streamlit/app.py   # -> http://localhost:8501
 ```
-
-- Vérifier le **thème sombre** « Chat Horror ».
-- Dans `src/front/streamlit/app.py` : afficher le `verdict` du Juge + un bouton
-  « Nouvelle conversation » (reset de `session_state`).
-
-## 👤 B — API / FastAPI
-
-```bash
-git switch main && git pull
-git switch -c feat/api-erreurs
-```
-
-- Gestion d'erreurs dans `src/backend/api/routes.py` (moteur qui échoue → code HTTP propre).
-- Garder `src/backend/api/deps.py` comme **seul** point de bascule mock → vrai agent.
-- Ajouter 1-2 tests dans `tests/test_api.py` ; explorer `http://127.0.0.1:8000/docs`.
-
-## 👤 C — Data / FAISS (prioritaire)
-
-```bash
-git switch main && git pull
-git switch -c feat/data-supabase
-uv add supabase                          # ajoute le client Supabase
-```
-
-- Côté Supabase : créer la table `films`, activer pgvector, colonne `embedding vector(768)`.
-- Dans `src/backend/data/db.py` : initialiser le client depuis `settings` et implémenter
-  `get_metadata` / `validate_film`.
-- Vérif : `get_metadata(1)` renvoie un `FilmMetadata` depuis Supabase.
 
 ---
 
-## 🔁 La boucle quotidienne (chacun, en répétition)
+## 4. Travailler à plusieurs (workflow Git)
+
+Le code est organisé par brique (`front`, `api`, `data`, `agent`) pour avancer en parallèle.
 
 ```bash
-uv run ruff check . && uv run pytest -q       # 1. vérifier
-git add -p                                     # 2. sélectionner ses changements
-git commit -m "feat(front): affichage du verdict"   # 3. committer
-git push -u origin feat/ma-branche             # 4. pousser
-# 5. ouvrir une Pull Request sur GitHub → review → merge
+# Démarrer une tâche : partir d'un main à jour
+git switch main && git pull
+git switch -c feat/<brique>-<sujet>      # ex. feat/front-historique
 ```
 
-## 🧭 Règle anti-conflits (cruciale à 3)
+**Boucle quotidienne :**
+```bash
+uv run ruff check . && uv run pytest -q  # 1. vérifier
+git add -p                                # 2. choisir ses changements
+git commit -m "feat(front): ..."          # 3. committer
+git push -u origin feat/ma-branche        # 4. pousser
+# 5. ouvrir une Pull Request → review → merge sur main
+```
 
-Après **chaque** merge d'un collègue :
-
+**Anti-conflits** (après chaque merge d'un collègue) :
 ```bash
 git switch main && git pull
-git switch feat/ma-branche
+git switch -            # revenir sur sa branche
 git merge main          # réintégrer tôt et souvent = peu de conflits
 ```
 
+> Règle d'or : on ne modifie pas `src/backend/contracts/` sans prévenir l'équipe (tout en dépend).
+> Dépôt public : aucun secret commité (clés dans `.env`, ignoré par git).
+
 ---
 
-## Aide-mémoire des commandes utiles
+## Aide-mémoire des commandes
 
 | Besoin | Commande |
 |---|---|
 | Lancer l'API | `uv run horragor-api` |
 | Lancer l'interface | `uv run streamlit run src/front/streamlit/app.py` |
-| Lancer les tests | `uv run pytest -q` |
-| Vérifier le style | `uv run ruff check .` |
+| Construire l'index FAISS | `uv run horragor-faiss` |
+| Préparer / remplir pgvector | `uv run horragor-pgvector-setup` puis `uv run horragor-embeddings` |
+| Tester la recherche FAISS | `uv run horragor-search "the thing"` |
+| Exporter le schéma du graphe | `uv run horragor-graph` |
+| Tests / style | `uv run pytest -q` · `uv run ruff check .` |
 | Ajouter une dépendance | `uv add <paquet>` |
-| Mettre à jour sa branche | `git switch main && git pull && git switch - && git merge main` |

@@ -3,7 +3,8 @@
 Agent conversationnel RAG (LangGraph, boucle ReAct) sur une base de films d'horreur,
 exposé via une API FastAPI asynchrone et une interface de chat Streamlit.
 
-> Statut : architecture validée. Choix LLM / embeddings et répartition des rôles : à définir.
+> Statut : implémenté (briques data + agent ReAct + Juge LLM). Détails pas à pas dans les
+> journaux de [`docs/`](.).
 
 ---
 
@@ -13,7 +14,7 @@ Dérivés des critères de performance du brief :
 
 1. **Aucun SQL brut généré par le LLM.** Le modèle n'appelle que des **fonctions Python typées** (Tools). Le SQL vit uniquement dans le connecteur.
 2. **Routage instantané.** Un index **FAISS en RAM** valide l'existence d'un film et renvoie son `id` (titres uniquement).
-3. **Zéro hallucination sur les métadonnées de base.** Réalisateur / année / genre proviennent exclusivement du connecteur SQL ; un **nœud Juge déterministe** le vérifie avant affichage.
+3. **Zéro hallucination sur les métadonnées de base.** Réalisateur / année / genre proviennent exclusivement des outils ; un **nœud Juge (LLM-as-judge)** en vérifie la fidélité avant affichage.
 4. **Scraping strictement sélectif.** Wikipédia ne se déclenche que si la question exige un détail introuvable en base.
 5. **Aucun gel d'écran.** Routes FastAPI asynchrones ; Streamlit ne fait que des appels HTTP.
 6. **« Je ne sais pas » maîtrisé.** Si le film est absent de la base ET de Wikipédia, l'agent l'admet poliment.
@@ -37,7 +38,7 @@ flowchart TB
 
     subgraph ENGINE["🧠 Moteur IA — LangGraph"]
         AGENT[Agent ReAct<br/>Reason + Act]
-        JUDGE{{Nœud Juge<br/>déterministe}}
+        JUDGE{{Nœud Juge<br/>LLM-as-judge}}
 
         subgraph TOOLS["🔧 Tools typés & sécurisés"]
             T1[FAISS<br/>validation ID instantanée]
@@ -96,16 +97,20 @@ stateDiagram-v2
     end note
 ```
 
-### Nœud Juge — validation déterministe
+### Nœud Juge — LLM-as-judge
 
-Pas de second appel LLM. Le Juge est du **code** :
+Un **second modèle distinct** (`qwen2.5:3b`, ≠ l'agent) audite la réponse finale via une sortie
+structurée `JudgeVerdict{valid, reason}` :
 
-- Il reçoit la réponse candidate de l'agent **et** les observations brutes renvoyées par les tools durant le tour.
-- Pour chaque métadonnée de base affirmée (réalisateur, année, genre), il vérifie la présence **littérale** de la valeur dans les données du connecteur SQL.
+- Il reçoit la **question**, les **observations brutes** des tools et la **réponse candidate**.
+- Il juge la **fidélité aux données** et la **cohérence** (réalisateur, année, genre, identité du film).
 - Verdict :
   - **Validé** → la réponse part vers l'API.
-  - **Rejeté + retries restants** → retour à l'agent avec un message correctif.
+  - **Rejeté + retries restants** → retour à l'agent avec la **raison** du juge.
   - **Rejeté + retries épuisés** → fallback « Je ne sais pas ».
+
+> Pourquoi un modèle différent : un LLM ne doit pas juger ses propres réponses. La 1ʳᵉ version
+> déterministe (regex sur l'année) laissait passer des incohérences → remplacée par ce juge LLM.
 
 ---
 
@@ -187,7 +192,7 @@ HorRAGor2/
 │       ├── contracts/       # schémas Pydantic + interfaces (Protocols)
 │       ├── mocks/           # faux moteur + fixtures
 │       ├── api/             # FastAPI (routes async)
-│       ├── agent/           # graphe LangGraph, juge déterministe, prompts
+│       ├── agent/           # graphe LangGraph, juge LLM, prompts, tools_registry
 │       ├── tools/           # FAISS, SQL, PGVector, Wikipédia, calcul d'âge
 │       └── data/            # ingestion, embeddings, build index FAISS
 ├── docs/architecture.md
@@ -205,10 +210,11 @@ HorRAGor2/
 - [x] **Connexion BDD** : **SQLAlchemy + `DATABASE_URL`** (psycopg), pas le SDK REST.
   Continuité Partie 1 (qui impose SQLAlchemy ORM) + schéma relationnel. Voir
   [`connexion-supabase.md`](connexion-supabase.md).
-- [ ] **Stockage des embeddings** synopsis (table dédiée vs colonne) — pour la reco pgvector.
-- [ ] **Réalisateur/casting** absents de la base (enrichir TMDB vs Wikipédia vs retirer).
-- [ ] Répartition des **rôles** (application / API / BDD-FAISS) + boucle ReAct commune.
-- [ ] Schéma de données définitif (au reçu du **golden data**).
+- [x] **Stockage des embeddings** : table dédiée `movie_embeddings` (vecteur 768, index HNSW
+  cosinus). Voir [`pgvector-reco-pas-a-pas.md`](pgvector-reco-pas-a-pas.md).
+- [x] **Réalisateur/casting** : enrichis via **TMDB** (`tmdb_id` présent en base).
+- [x] **Juge** : **LLM-as-judge** (`qwen2.5:3b`), non déterministe (cf. §3).
+- [ ] Répartition des **rôles** (application / API / BDD-FAISS) au sein de l'équipe.
 
-> Stack 100 % locale : prérequis = installer Ollama puis `ollama pull llama3.2:3b` et
-> `ollama pull nomic-embed-text`. Aucune dépendance cloud, aucun coût.
+> Stack 100 % locale : prérequis = installer Ollama puis `ollama pull llama3.2:3b` (agent),
+> `ollama pull qwen2.5:3b` (juge) et `ollama pull nomic-embed-text` (embeddings). Aucun coût.

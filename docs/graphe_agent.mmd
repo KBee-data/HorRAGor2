@@ -1,4 +1,4 @@
-%% HorRAGor2 — Graphe de l'agent (LangGraph, boucle ReAct + Juge déterministe)
+%% HorRAGor2 — Graphe de l'agent (LangGraph, boucle ReAct + Juge LLM)
 %% Livrable « Schéma du Graphe ». Export : https://mermaid.live → Actions → SVG
 stateDiagram-v2
     [*] --> Agent
@@ -16,6 +16,6 @@ stateDiagram-v2
         FAISS · SQL · PGVector · Wikipédia
     end note
     note right of Juge
-        Vérifie que chaque fait cité
-        provient des observations des tools
+        LLM distinct (qwen2.5:3b) :
+        juge la fidélité aux observations
     end note

@@ -125,5 +125,5 @@ Connecteur SQL complet (branche `feat/sql-connector`) : `get_metadata` (SQLAlche
 La chaîne **`validate_film` → `query_movie_metadata`** renvoie des métadonnées fidèles et
 complètes (année, genres, note, synopsis, réalisateur, casting).
 
-**Reste pour la brique data :** reco **pgvector** (`find_similar_horror_movies`) — en attente de
-la décision « stockage des embeddings » (cf. mémoire `part1-db-reality-and-gaps`).
+**Suite (réalisée) :** la reco **pgvector** (`find_similar_horror_movies`) —
+voir [`pgvector-reco-pas-a-pas.md`](pgvector-reco-pas-a-pas.md).

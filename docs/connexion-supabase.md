@@ -55,9 +55,9 @@ REST/Storage/Auth, mais ne sont **pas** l'accès principal à la base.
 - `.env.example` : `DATABASE_URL` documenté (format psycopg) dans la section SECRETS.
 - Décision tracée ici, dans `docs/architecture.md` (§ Décisions) et en mémoire projet.
 
-## Étapes d'implémentation (à venir, brique C)
+## Étapes d'implémentation (réalisées)
 
-1. **Dépendances** : `uv add sqlalchemy psycopg`.
+1. **Dépendances** : `uv add sqlalchemy "psycopg[binary]"` (la variante *binary* embarque `libpq`).
 2. **Engine partagé** : un module `backend/data/db.py` qui crée l'`engine`/`Session`
    SQLAlchemy à partir de `settings.database_url` (cf. pattern de Part 1 : `pool_pre_ping=True`).
    Possibilité de **réutiliser les modèles ORM** de Part 1 (les recopier dans `data/models.py`,
@@ -72,5 +72,6 @@ REST/Storage/Auth, mais ne sont **pas** l'accès principal à la base.
    quand `DATABASE_URL` est défini (sinon repli sur le SQLite local de dev).
 5. **Tools** : `query_movie_metadata` et `find_similar_horror_movies` appellent le repository.
 
-> Décisions encore ouvertes liées : **stockage des embeddings** (pgvector) et **réalisateur/
-> casting absents** de la base. Voir mémoire `part1-db-reality-and-gaps`.
+> Décisions liées, depuis tranchées : **stockage des embeddings** = table dédiée
+> `movie_embeddings` (cf. `pgvector-reco-pas-a-pas.md`) ; **réalisateur/casting** = enrichis
+> via **TMDB**.

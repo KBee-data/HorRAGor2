@@ -27,7 +27,7 @@ flowchart TB
         GRAPH["graph.py<br/>boucle ReAct compilée"]
         STATE["state.py<br/>AgentState (TypedDict)"]
         PROMPTS["prompts.py<br/>system + consignes anti-hallucination"]
-        JUDGE["judge.py<br/>Juge déterministe"]
+        JUDGE["judge.py<br/>Juge LLM (qwen2.5:3b)"]
         GRAPH --- STATE
         GRAPH --- PROMPTS
         GRAPH --> JUDGE

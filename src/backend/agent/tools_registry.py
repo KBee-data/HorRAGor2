@@ -38,13 +38,18 @@ def lookup_movie(title: str) -> dict:
 
 
 @tool
-def find_similar(title: str, k: int = 5) -> list[dict]:
-    """Recommande k films d'horreur proches d'un film donne par son TITRE (vide si inconnu)."""
+def find_similar(title: str, k: int = 5) -> dict:
+    """Recommande k films d'horreur proches d'un film donne par son TITRE.
+
+    Renvoie {"film": <titre>, "similaires": [titres]} — relaie ces titres a l'utilisateur.
+    Si le film est inconnu, renvoie {"found": false}.
+    """
     trace.record("tool", "find_similar", f"titre={title!r}, k={k}")
     ref = faiss_tool.validate_film(title)
     if ref is None:
-        return []
-    return [r.model_dump() for r in pgvector_tool.find_similar_horror_movies(ref.id, k)]
+        return {"found": False}
+    titres = [r.title for r in pgvector_tool.find_similar_horror_movies(ref.id, k)]
+    return {"found": True, "film": ref.title, "similaires": titres}
 
 
 @tool

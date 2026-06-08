@@ -12,7 +12,7 @@ Stack : LangGraph · Ollama (LLM + Juge + embeddings, local) · FAISS · Supabas
 - [uv](https://docs.astral.sh/uv/) et [Ollama](https://ollama.com) installés.
 - Modèles Ollama :
   ```bash
-  ollama pull llama3.2:3b      # agent (ReAct)
+  ollama pull mistral:7b       # agent (ReAct)
   ollama pull qwen2.5:3b       # juge (anti-hallucination)
   ollama pull nomic-embed-text # embeddings (768 dim)
   ```
@@ -126,3 +126,5 @@ On ne modifie pas `backend/contracts/` sans prévenir l'équipe.
 
 Architecture, schéma du graphe et **journaux de développement** (FAISS, connecteur SQL,
 reco pgvector, agent) : [`docs/`](docs/). Support de pitch : [`docs/prez/`](docs/prez/).
+Problèmes rencontrés au test & correctifs (movie_age, juge, modèle 7B) :
+[`docs/ajustements-agent.md`](docs/ajustements-agent.md).

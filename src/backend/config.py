@@ -58,8 +58,9 @@ class Settings(BaseSettings):
     # --- Modeles : stack 100% locale via Ollama (aucune cle API) ---
     # Ollama expose LLM et embeddings sur la meme instance locale.
     ollama_base_url: str = "http://localhost:11434"
-    # LLM leger compatible tool-calling (ReAct). Modifiable selon le materiel.
-    llm_model: str = "llama3.2:3b"
+    # LLM de l'agent (ReAct + tool-calling). Un 7B synthetise bien mieux les listes/textes
+    # qu'un 3B (le 3B suffit pour des faits simples mais decroche sur la synthese).
+    llm_model: str = "mistral:7b"
     # Modele du Juge (LLM-as-judge) : un AUTRE modele que l'agent (il ne doit pas juger
     # ses propres reponses). qwen2.5:3b coexiste en VRAM avec l'agent (pas de swap).
     judge_model: str = "qwen2.5:3b"

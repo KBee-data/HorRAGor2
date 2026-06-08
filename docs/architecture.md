@@ -99,7 +99,7 @@ stateDiagram-v2
 
 ### Nœud Juge — LLM-as-judge
 
-Un **second modèle distinct** (`qwen2.5:3b`, ≠ l'agent) audite la réponse finale via une sortie
+Un **second appel LLM** (`qwen2.5:7b`) audite la réponse finale via une sortie
 structurée `JudgeVerdict{valid, reason}` :
 
 - Il reçoit la **question**, les **observations brutes** des tools et la **réponse candidate**.
@@ -109,8 +109,10 @@ structurée `JudgeVerdict{valid, reason}` :
   - **Rejeté + retries restants** → retour à l'agent avec la **raison** du juge.
   - **Rejeté + retries épuisés** → fallback « Je ne sais pas ».
 
-> Pourquoi un modèle différent : un LLM ne doit pas juger ses propres réponses. La 1ʳᵉ version
-> déterministe (regex sur l'année) laissait passer des incohérences → remplacée par ce juge LLM.
+> Évolution : 1) juge **déterministe** (regex année) → trop limité ; 2) juge LLM `qwen2.5:3b`
+> distinct → trop faible, rejetait des réponses correctes ; 3) **`qwen2.5:7b`** (même modèle que
+> l'agent, mais rôle/prompt strict distinct) → fiable. Compromis VRAM : un seul modèle chargé.
+> Détail du cheminement : [`ajustements-agent.md`](ajustements-agent.md).
 
 ---
 
@@ -205,8 +207,9 @@ HorRAGor2/
 
 ## 8. Décisions
 
-- [x] **LLM agent** : Ollama local `mistral:7b` (tool-calling + synthèse ; un 3B décrochait
-  sur les listes/textes longs). Sans clé API.
+- [x] **LLM agent + juge** : Ollama local `qwen2.5:7b` (tool-calling structuré fiable + bonne
+  synthèse ; llama3.2:3b synthétisait mal, mistral:7b émettait des tool-calls non parsés).
+  Un seul modèle chargé. Sans clé API. Cf. [`ajustements-agent.md`](ajustements-agent.md).
 - [x] **Embeddings** : Ollama `nomic-embed-text` → **768 dim** (cohérent FAISS + PGVector).
 - [x] **Connexion BDD** : **SQLAlchemy + `DATABASE_URL`** (psycopg), pas le SDK REST.
   Continuité Partie 1 (qui impose SQLAlchemy ORM) + schéma relationnel. Voir
@@ -214,8 +217,8 @@ HorRAGor2/
 - [x] **Stockage des embeddings** : table dédiée `movie_embeddings` (vecteur 768, index HNSW
   cosinus). Voir [`pgvector-reco-pas-a-pas.md`](pgvector-reco-pas-a-pas.md).
 - [x] **Réalisateur/casting** : enrichis via **TMDB** (`tmdb_id` présent en base).
-- [x] **Juge** : **LLM-as-judge** (`qwen2.5:3b`), non déterministe (cf. §3).
+- [x] **Juge** : **LLM-as-judge** (`qwen2.5:7b`), non déterministe (cf. §3).
 - [ ] Répartition des **rôles** (application / API / BDD-FAISS) au sein de l'équipe.
 
-> Stack 100 % locale : prérequis = installer Ollama puis `ollama pull mistral:7b` (agent),
-> `ollama pull qwen2.5:3b` (juge) et `ollama pull nomic-embed-text` (embeddings). Aucun coût.
+> Stack 100 % locale : prérequis = installer Ollama puis `ollama pull qwen2.5:7b` (agent + juge)
+> et `ollama pull nomic-embed-text` (embeddings). Aucun coût.

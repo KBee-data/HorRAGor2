@@ -13,8 +13,7 @@ cd horragor2
 uv sync --extra dev
 
 # IA locale (Ollama) : https://ollama.com
-ollama pull mistral:7b        # agent (ReAct)
-ollama pull qwen2.5:3b        # juge (anti-hallucination)
+ollama pull qwen2.5:7b        # agent (ReAct) + juge (anti-hallucination)
 ollama pull nomic-embed-text  # embeddings (768 dim)
 
 cp .env.example .env          # le .env n'est JAMAIS commité

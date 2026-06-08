@@ -15,12 +15,13 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from backend.agent import judge, trace
+from backend import trace
+from backend.agent import judge
 from backend.agent.prompts import SYSTEM_PROMPT
 from backend.agent.state import AgentState
 from backend.agent.tools_registry import TOOLS
 from backend.config import settings
-from backend.contracts.schemas import ChatRequest, ChatResponse, TraceStep
+from backend.contracts.schemas import ChatRequest, ChatResponse
 
 logger = logging.getLogger("horragor")
 
@@ -120,26 +121,6 @@ def _sources(state: AgentState) -> list[str]:
     return sorted(set(names))
 
 
-def _build_trace(state: AgentState) -> list[TraceStep]:
-    """Reconstruit les etapes du raisonnement (outils + corrections du juge + verdict)."""
-    messages = state["messages"]
-    # Resultat de chaque appel d'outil, indexe par tool_call_id.
-    results = {
-        m.tool_call_id: _as_text(m.content) for m in messages if isinstance(m, ToolMessage)
-    }
-    steps: list[TraceStep] = []
-    for m in messages:
-        for tc in getattr(m, "tool_calls", None) or []:
-            observed = results.get(tc["id"], "")
-            detail = f"args={tc['args']} → {observed[:140]}"
-            steps.append(TraceStep(kind="tool", name=tc["name"], detail=detail))
-        # Les messages de correction contiennent la raison du rejet du juge.
-        if isinstance(m, HumanMessage) and "Un juge a rejete" in _as_text(m.content):
-            steps.append(TraceStep(kind="judge", name="rejet", detail=_as_text(m.content)[:180]))
-    steps.append(TraceStep(kind="verdict", name=state.get("verdict") or "valid"))
-    return steps
-
-
 class AgentGraph:
     """Implemente `contracts.interfaces.AgentEngine` en enveloppant le graphe ReAct + Juge."""
 
@@ -150,6 +131,7 @@ class AgentGraph:
         # Le graphe (LLM Ollama + tools) est synchrone et bloquant : on l'execute dans un
         # thread pour NE PAS geler la boucle d'evenements de l'API (critere "pas de gel").
         # On capture TOUTE erreur : l'API ne doit jamais renvoyer un 500 a cause de l'agent.
+        events = trace.begin()  # collecteur de la trace fine (se propage au thread)
         try:
             state = await asyncio.to_thread(
                 self._graph.invoke,
@@ -173,11 +155,12 @@ class AgentGraph:
                 verdict="error",
             )
 
+        trace.record("verdict", state.get("verdict") or "valid")
         response = ChatResponse(
             answer=_as_text(state["messages"][-1].content) or "(reponse vide)",
             sources=_sources(state),
             verdict=state.get("verdict"),
-            trace=_build_trace(state),
+            trace=events,
         )
         trace.log_trace(req.message, response)  # persistance best-effort (logs/, gitignore)
         return response

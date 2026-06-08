@@ -13,6 +13,7 @@ recoit des observations propres plutot que des erreurs.
 
 from langchain_core.tools import tool
 
+from backend import trace
 from backend.tools import faiss_tool, pgvector_tool, sql_tool, temporal_tool, wikipedia_tool
 
 
@@ -24,6 +25,7 @@ def lookup_movie(title: str) -> dict:
     question factuelle sur un film. Si le film est inconnu, renvoie {"found": false}
     (dans ce cas, repondre poliment qu'on ne connait pas ce film).
     """
+    trace.record("tool", "lookup_movie", f"titre={title!r}")
     ref = faiss_tool.validate_film(title)
     if ref is None:
         return {"found": False}
@@ -38,6 +40,7 @@ def lookup_movie(title: str) -> dict:
 @tool
 def find_similar(title: str, k: int = 5) -> list[dict]:
     """Recommande k films d'horreur proches d'un film donne par son TITRE (vide si inconnu)."""
+    trace.record("tool", "find_similar", f"titre={title!r}, k={k}")
     ref = faiss_tool.validate_film(title)
     if ref is None:
         return []
@@ -47,6 +50,7 @@ def find_similar(title: str, k: int = 5) -> list[dict]:
 @tool
 def movie_age(release_year: int) -> int:
     """Calcule l'age (en annees) d'un film a partir de son annee de sortie."""
+    trace.record("tool", "movie_age", f"annee={release_year}")
     return temporal_tool.calculate_movie_age(release_year)
 
 
@@ -57,6 +61,7 @@ def wikipedia_synopsis(title: str) -> str | None:
     A N'UTILISER QUE si l'utilisateur demande des details/anecdotes approfondis introuvables
     dans les faits de la base. Renvoie null si rien trouve.
     """
+    trace.record("tool", "wikipedia_synopsis", f"titre={title!r}")
     return wikipedia_tool.scrape_detailed_synopsis(title)
 
 

@@ -11,6 +11,7 @@ L'index est un singleton de module : charge une fois (au demarrage de l'API, eta
 via set_index) ou paresseusement depuis le disque au premier appel.
 """
 
+from backend import trace
 from backend.config import settings
 from backend.contracts.schemas import FilmRef
 from backend.data.embed import embed_text
@@ -36,11 +37,21 @@ def _get_index() -> TitleIndex:
 def validate_film(title: str) -> FilmRef | None:
     """Renvoie l'id du film si le titre existe (score >= seuil), sinon None."""
     index = _get_index()
+    trace.record("embed", "embed_text", f"nomic-embed-text : {title!r} → vecteur 768d")
     vector = embed_text(normalize_title(title))
     results = index.search_vector(vector, k=1)
     if not results:
+        trace.record("faiss", "validate_film", f"{title!r} → aucun resultat")
         return None
     score, film_id, matched_title = results[0]
     if score < settings.faiss_score_threshold:
+        trace.record(
+            "faiss", "validate_film",
+            f"{title!r} → rejete (cosinus {score:.2f} < seuil {settings.faiss_score_threshold})",
+        )
         return None
+    trace.record(
+        "faiss", "validate_film",
+        f"{title!r} → id={film_id} {matched_title!r} (cosinus {score:.2f})",
+    )
     return FilmRef(id=film_id, title=matched_title)

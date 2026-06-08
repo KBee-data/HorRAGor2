@@ -16,6 +16,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from pydantic import BaseModel, Field
 
+from backend import trace
 from backend.config import settings
 
 FALLBACK_ANSWER = "Desole, je ne peux pas garantir cette information de maniere fiable."
@@ -61,6 +62,9 @@ def evaluate(question: str, answer: str, tool_outputs: list[str]) -> tuple[bool,
         verdict = _judge_llm().invoke(
             [SystemMessage(content=_JUDGE_SYSTEM), HumanMessage(content=user)]
         )
+        label = "valide" if verdict.valid else "rejete"
+        trace.record("judge", settings.judge_model, f"{label} — {verdict.reason}")
         return bool(verdict.valid), verdict.reason
     except Exception:  # noqa: BLE001 — le juge ne doit jamais casser l'agent
+        trace.record("judge", "erreur", "juge indisponible (fail-open : on laisse passer)")
         return True, "juge indisponible"

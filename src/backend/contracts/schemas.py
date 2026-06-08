@@ -45,13 +45,22 @@ class FilmMetadata(BaseModel):
     synopsis: str | None = None  # movies.overview
 
 
+class TraceStep(BaseModel):
+    """Une etape du raisonnement de l'agent (pour comprendre la mecanique interne)."""
+
+    kind: str  # "tool" | "judge" | "verdict"
+    name: str  # nom de l'outil, ou type d'evenement
+    detail: str = ""  # arguments / extrait du resultat / raison du juge
+
+
 class ChatResponse(BaseModel):
     """Ce que l'API renvoie au Front.
 
-    `sources` rend la reponse tracable (anti-hallucination) ; `verdict` expose
-    le resultat du nœud Juge (valide / corrige / fallback) pour la transparence.
+    `sources` rend la reponse tracable (anti-hallucination) ; `verdict` expose le
+    resultat du nœud Juge ; `trace` detaille les etapes (outils, juge) du parcours.
     """
 
     answer: str
     sources: list[str] = Field(default_factory=list)
     verdict: str | None = None
+    trace: list[TraceStep] = Field(default_factory=list)

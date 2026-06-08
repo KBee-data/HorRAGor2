@@ -205,7 +205,8 @@ HorRAGor2/
 
 ## 8. Décisions
 
-- [x] **LLM** : Ollama local `llama3.2:3b` (tool-calling, léger, sans clé API).
+- [x] **LLM agent** : Ollama local `mistral:7b` (tool-calling + synthèse ; un 3B décrochait
+  sur les listes/textes longs). Sans clé API.
 - [x] **Embeddings** : Ollama `nomic-embed-text` → **768 dim** (cohérent FAISS + PGVector).
 - [x] **Connexion BDD** : **SQLAlchemy + `DATABASE_URL`** (psycopg), pas le SDK REST.
   Continuité Partie 1 (qui impose SQLAlchemy ORM) + schéma relationnel. Voir
@@ -216,5 +217,5 @@ HorRAGor2/
 - [x] **Juge** : **LLM-as-judge** (`qwen2.5:3b`), non déterministe (cf. §3).
 - [ ] Répartition des **rôles** (application / API / BDD-FAISS) au sein de l'équipe.
 
-> Stack 100 % locale : prérequis = installer Ollama puis `ollama pull llama3.2:3b` (agent),
+> Stack 100 % locale : prérequis = installer Ollama puis `ollama pull mistral:7b` (agent),
 > `ollama pull qwen2.5:3b` (juge) et `ollama pull nomic-embed-text` (embeddings). Aucun coût.

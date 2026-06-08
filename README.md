@@ -12,7 +12,7 @@ Stack : LangGraph · Ollama (LLM + Juge + embeddings, local) · FAISS · Supabas
 - [uv](https://docs.astral.sh/uv/) et [Ollama](https://ollama.com) installés.
 - Modèles Ollama :
   ```bash
-  ollama pull llama3.2:3b      # agent (ReAct)
+  ollama pull mistral:7b       # agent (ReAct)
   ollama pull qwen2.5:3b       # juge (anti-hallucination)
   ollama pull nomic-embed-text # embeddings (768 dim)
   ```

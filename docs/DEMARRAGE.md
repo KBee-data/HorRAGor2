@@ -37,6 +37,23 @@ uv run horragor-pgvector-setup   # active pgvector + table movie_embeddings
 uv run horragor-embeddings       # vectorise les synopsis (reco) — ~6 min
 ```
 
+### Réinitialiser les données (après un rechargement de la base par la Partie 1)
+
+La Partie 2 construit deux artefacts indexés sur `movies.id` : l'**index FAISS** (titres) et la
+table pgvector **`movie_embeddings`**. Si la **Partie 1 recharge la base**, les `id`
+(auto-increment) changent → ces artefacts deviennent incohérents (mauvais film renvoyé). Il faut
+tout reconstruire **depuis Supabase**, dans l'ordre :
+
+```bash
+# 1. (côté Partie 1) recharger la base, PUIS, ici :
+uv run horragor-reset-data       # FAISS + pgvector-setup + vidage + embeddings (~5-8 min)
+uv run horragor-api              # 2. redémarrer l'API (recharge l'index FAISS en RAM)
+```
+
+> ⚠️ Si la Partie 1 **DROP** la table `movies` (au lieu de la vider), supprimer d'abord
+> `movie_embeddings` (sa FK `→ movies(id)` bloque le drop) : `DROP TABLE movie_embeddings;`.
+> Règle d'or : **tout reconstruire depuis la même base rechargée** (sinon incohérence d'ids).
+
 ## 3. Lancer l'application
 
 ```bash
@@ -87,6 +104,7 @@ git merge main          # réintégrer tôt et souvent = peu de conflits
 | Lancer l'interface | `uv run streamlit run src/front/streamlit/app.py` |
 | Construire l'index FAISS | `uv run horragor-faiss` |
 | Préparer / remplir pgvector | `uv run horragor-pgvector-setup` puis `uv run horragor-embeddings` |
+| Réinitialiser les données (après reload Partie 1) | `uv run horragor-reset-data` |
 | Tester la recherche FAISS | `uv run horragor-search "the thing"` |
 | Exporter le schéma du graphe | `uv run horragor-graph` |
 | Lire la trace du dernier run | `uv run horragor-trace` (`-n N` pour les N derniers) |

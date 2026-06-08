@@ -16,14 +16,11 @@ from backend.data.faiss_index import TitleIndex
 from backend.data.titles import load_titles
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Construit l'index FAISS des titres.")
-    parser.add_argument("--limit", type=int, default=None, help="limiter le nombre de titres")
-    args = parser.parse_args()
-
+def build(limit: int | None = None) -> None:
+    """Construit et persiste l'index FAISS des titres (reutilisable, sans argparse)."""
     pairs = load_titles()
-    if args.limit:
-        pairs = pairs[: args.limit]
+    if limit:
+        pairs = pairs[:limit]
 
     print(f"{len(pairs)} titres a embedder...")
     t0 = time.perf_counter()
@@ -31,6 +28,13 @@ def main() -> None:
     out = index.save()
     dt = time.perf_counter() - t0
     print(f"✅ Index construit ({len(index)} titres) en {dt:.1f}s -> {out}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Construit l'index FAISS des titres.")
+    parser.add_argument("--limit", type=int, default=None, help="limiter le nombre de titres")
+    args = parser.parse_args()
+    build(args.limit)
 
 
 if __name__ == "__main__":

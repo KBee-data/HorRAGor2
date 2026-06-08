@@ -62,6 +62,7 @@ uv run pytest -q
 | `uv run horragor-search "titre"` | Teste / calibre la recherche FAISS |
 | `uv run horragor-pgvector-setup` | Active pgvector + table d'embeddings |
 | `uv run horragor-embeddings` | Génère les embeddings de synopsis |
+| `uv run horragor-reset-data` | Reconstruit FAISS + embeddings après un rechargement de la base (Partie 1) |
 | `uv run horragor-graph` | Exporte le schéma du graphe (Mermaid) |
 | `uv run horragor-trace` | Affiche la trace du dernier run (lisible) ; `-n N` pour les N derniers |
 

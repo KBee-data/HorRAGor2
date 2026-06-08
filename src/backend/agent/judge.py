@@ -28,14 +28,16 @@ class JudgeVerdict(BaseModel):
 
 
 _JUDGE_SYSTEM = """\
-Tu es un JUGE qualite pour un assistant specialise films d'horreur. On te donne la QUESTION
-de l'utilisateur, les DONNEES factuelles renvoyees par des outils, et la REPONSE de l'assistant.
+Tu es un JUGE de fidelite. On te donne la QUESTION, les DONNEES renvoyees par des outils, et
+la REPONSE de l'assistant. Tu verifies seulement que la REPONSE est FIDELE aux DONNEES.
 
-Declare la reponse INVALIDE (valid=false) si elle :
-- affirme un fait (realisateur, annee, age, genre, titre) ABSENT des DONNEES ou contredit ;
-- invente des informations non presentes dans les DONNEES ;
-- est incoherente avec la QUESTION (ex. : parle d'un autre film que celui demande).
-Sinon, declare-la VALIDE (valid=true). Sois STRICT sur les faits, tolerant sur le style.
+REGLES ABSOLUES :
+- N'utilise JAMAIS tes propres connaissances. Ne fais AUCUN calcul toi-meme (age, date, etc.).
+- Une valeur PRESENTE dans les DONNEES est correcte PAR DEFINITION : si la reponse la reprend
+  (ex. un age, une annee, un realisateur deja calcules/fournis), la reponse est VALIDE.
+- Declare INVALIDE (valid=false) UNIQUEMENT si la reponse affirme un fait ABSENT des DONNEES,
+  CONTREDIT directement une donnee, ou parle d'un AUTRE film que celui des DONNEES.
+- Dans le doute, declare VALIDE (valid=true). Tolerant sur le style, strict sur l'invention.
 Donne une raison courte.
 """
 

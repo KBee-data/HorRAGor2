@@ -126,3 +126,5 @@ On ne modifie pas `backend/contracts/` sans prévenir l'équipe.
 
 Architecture, schéma du graphe et **journaux de développement** (FAISS, connecteur SQL,
 reco pgvector, agent) : [`docs/`](docs/). Support de pitch : [`docs/prez/`](docs/prez/).
+Problèmes rencontrés au test & correctifs (movie_age, juge, modèle 7B) :
+[`docs/ajustements-agent.md`](docs/ajustements-agent.md).

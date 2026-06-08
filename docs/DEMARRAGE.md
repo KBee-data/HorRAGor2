@@ -90,5 +90,6 @@ git merge main          # réintégrer tôt et souvent = peu de conflits
 | Préparer / remplir pgvector | `uv run horragor-pgvector-setup` puis `uv run horragor-embeddings` |
 | Tester la recherche FAISS | `uv run horragor-search "the thing"` |
 | Exporter le schéma du graphe | `uv run horragor-graph` |
+| Lire la trace du dernier run | `uv run horragor-trace` (`-n N` pour les N derniers) |
 | Tests / style | `uv run pytest -q` · `uv run ruff check .` |
 | Ajouter une dépendance | `uv add <paquet>` |

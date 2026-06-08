@@ -1,8 +1,8 @@
-"""Boucle ReAct LangGraph + nœud Juge deterministe.
+"""Boucle ReAct LangGraph + nœud Juge LLM.
 
 Flux : Agent (LLM) -> [Tools <-> Agent]* -> Juge -> reponse validee | correction | fallback.
-`AgentGraph` (etape 4) enveloppera ce graphe pour implementer `AgentEngine` et remplacer
-le FakeEngine dans l'API, sans rien changer au contrat.
+`AgentGraph` implemente `AgentEngine` (remplace le FakeEngine dans l'API) et expose, en plus
+de la reponse, une **trace** des etapes (outils, juge) pour comprendre la mecanique interne.
 """
 
 import asyncio
@@ -15,12 +15,12 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from backend.agent import judge
+from backend.agent import judge, trace
 from backend.agent.prompts import SYSTEM_PROMPT
 from backend.agent.state import AgentState
 from backend.agent.tools_registry import TOOLS
 from backend.config import settings
-from backend.contracts.schemas import ChatRequest, ChatResponse
+from backend.contracts.schemas import ChatRequest, ChatResponse, TraceStep
 
 logger = logging.getLogger("horragor")
 
@@ -120,6 +120,26 @@ def _sources(state: AgentState) -> list[str]:
     return sorted(set(names))
 
 
+def _build_trace(state: AgentState) -> list[TraceStep]:
+    """Reconstruit les etapes du raisonnement (outils + corrections du juge + verdict)."""
+    messages = state["messages"]
+    # Resultat de chaque appel d'outil, indexe par tool_call_id.
+    results = {
+        m.tool_call_id: _as_text(m.content) for m in messages if isinstance(m, ToolMessage)
+    }
+    steps: list[TraceStep] = []
+    for m in messages:
+        for tc in getattr(m, "tool_calls", None) or []:
+            observed = results.get(tc["id"], "")
+            detail = f"args={tc['args']} → {observed[:140]}"
+            steps.append(TraceStep(kind="tool", name=tc["name"], detail=detail))
+        # Les messages de correction contiennent la raison du rejet du juge.
+        if isinstance(m, HumanMessage) and "Un juge a rejete" in _as_text(m.content):
+            steps.append(TraceStep(kind="judge", name="rejet", detail=_as_text(m.content)[:180]))
+    steps.append(TraceStep(kind="verdict", name=state.get("verdict") or "valid"))
+    return steps
+
+
 class AgentGraph:
     """Implemente `contracts.interfaces.AgentEngine` en enveloppant le graphe ReAct + Juge."""
 
@@ -153,8 +173,11 @@ class AgentGraph:
                 verdict="error",
             )
 
-        return ChatResponse(
+        response = ChatResponse(
             answer=_as_text(state["messages"][-1].content) or "(reponse vide)",
             sources=_sources(state),
             verdict=state.get("verdict"),
+            trace=_build_trace(state),
         )
+        trace.log_trace(req.message, response)  # persistance best-effort (logs/, gitignore)
+        return response

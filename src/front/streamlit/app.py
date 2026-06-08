@@ -37,6 +37,20 @@ def _render_meta(msg: dict) -> None:
         st.caption(" · ".join(bits))
 
 
+def _render_trace(msg: dict) -> None:
+    """Expander montrant les étapes de raisonnement (outils, juge, verdict)."""
+    steps = msg.get("trace") or []
+    if not steps:
+        return
+    icons = {"tool": "🔧", "judge": "⚖️", "verdict": "🏁"}
+    with st.expander(f"🔍 Raisonnement ({len(steps)} étapes)"):
+        for step in steps:
+            line = f"{icons.get(step['kind'], '•')} **{step['name']}**"
+            if step.get("detail"):
+                line += f" — {step['detail']}"
+            st.markdown(line)
+
+
 # --- Barre laterale ---
 with st.sidebar:
     st.header("HorRAGor2 👻")
@@ -64,6 +78,7 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
         if msg["role"] == "assistant":
             _render_meta(msg)
+            _render_trace(msg)
 
 # st.chat_input : champ de saisie dedie, ancre en bas de page.
 if prompt := st.chat_input("Pose ta question sur un film d'horreur..."):
@@ -82,6 +97,7 @@ if prompt := st.chat_input("Pose ta question sur un film d'horreur..."):
                     "content": response.answer,
                     "sources": response.sources,
                     "verdict": response.verdict,
+                    "trace": [step.model_dump() for step in response.trace],
                 }
             except Exception as exc:  # noqa: BLE001 — on affiche toute erreur a l'utilisateur
                 entry = {
@@ -89,8 +105,10 @@ if prompt := st.chat_input("Pose ta question sur un film d'horreur..."):
                     "content": f"⚠️ Erreur de connexion à l'API : {exc}",
                     "sources": [],
                     "verdict": None,
+                    "trace": [],
                 }
         st.markdown(entry["content"])
         _render_meta(entry)
+        _render_trace(entry)
 
     st.session_state.messages.append(entry)

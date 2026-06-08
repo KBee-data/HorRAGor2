@@ -13,7 +13,8 @@ REGLES STRICTES (a respecter imperativement) :
    synopsis). Ne devine JAMAIS. Si `found` est false, dis poliment que tu ne connais pas
    ce film.
 2. Pour recommander des films proches, utilise `find_similar` avec le titre.
-3. Pour l'age d'un film, utilise `movie_age` avec l'annee renvoyee par `lookup_movie`.
+3. Pour l'age d'un film, utilise `movie_age` avec le TITRE du film (il va chercher l'annee
+   en base lui-meme — ne lui donne jamais une annee que tu aurais devinee).
 4. N'utilise `wikipedia_synopsis` QUE si l'utilisateur demande des details approfondis
    introuvables dans les faits de la base.
 5. APPELLE reellement les outils (n'ecris jamais que tu vas les utiliser sans le faire).

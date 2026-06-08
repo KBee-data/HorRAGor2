@@ -8,6 +8,8 @@ ne fait qu'appeler l'outil. C'est implementable des maintenant, sans dependance.
 
 from datetime import date
 
+from backend import trace
+
 
 def calculate_movie_age(release_year: int, current_year: int | None = None) -> int:
     """Renvoie l'age du film en annees (annee courante - annee de sortie).
@@ -20,4 +22,5 @@ def calculate_movie_age(release_year: int, current_year: int | None = None) -> i
     age = current_year - release_year
     if age < 0:
         raise ValueError("L'annee de sortie est dans le futur.")
+    trace.record("python", "calculate_movie_age", f"{current_year} - {release_year} = {age} ans")
     return age

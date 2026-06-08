@@ -64,6 +64,19 @@ uv run pytest -q
 | `uv run horragor-pgvector-setup` | Active pgvector + table d'embeddings |
 | `uv run horragor-embeddings` | Génère les embeddings de synopsis |
 | `uv run horragor-graph` | Exporte le schéma du graphe (Mermaid) |
+| `uv run horragor-trace` | Affiche la trace du dernier run (lisible) ; `-n N` pour les N derniers |
+
+## Trace du raisonnement (logs)
+
+Chaque requête `/chat` produit une **trace fine** de tout le parcours interne (outil →
+embedding → FAISS → SQL → TMDB → pgvector → Wikipédia → juge → verdict). On peut la lire :
+
+- **dans l'app** : l'expander « 🔍 Raisonnement » sous chaque réponse ;
+- **en terminal** : `uv run horragor-trace` (relit le dernier run de façon lisible) ;
+- **données brutes** : `logs/traces.jsonl` (une ligne JSON par run).
+
+> Le dossier **`logs/` est gitignoré** : les traces sont des artefacts d'exécution, jamais
+> versionnés. Le *code* de tracing vit dans `src/backend/trace.py` (collecteur via `contextvars`).
 
 ## Structure
 

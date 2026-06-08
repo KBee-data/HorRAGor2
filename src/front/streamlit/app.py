@@ -42,7 +42,10 @@ def _render_trace(msg: dict) -> None:
     steps = msg.get("trace") or []
     if not steps:
         return
-    icons = {"tool": "🔧", "judge": "⚖️", "verdict": "🏁"}
+    icons = {
+        "tool": "🔧", "embed": "🧬", "faiss": "🔎", "sql": "🗄️", "tmdb": "🎬",
+        "pgvector": "🧭", "wikipedia": "🌐", "python": "🐍", "judge": "⚖️", "verdict": "🏁",
+    }
     with st.expander(f"🔍 Raisonnement ({len(steps)} étapes)"):
         for step in steps:
             line = f"{icons.get(step['kind'], '•')} **{step['name']}**"

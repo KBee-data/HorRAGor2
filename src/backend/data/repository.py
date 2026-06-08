@@ -15,6 +15,7 @@ from datetime import date
 
 from sqlalchemy import Engine, text
 
+from backend import trace
 from backend.contracts.schemas import FilmMetadata, FilmRef
 from backend.data.db import get_engine
 
@@ -55,6 +56,7 @@ class SupabaseFilmRepository:
                 {"id": film_id},
             ).first()
             if movie is None:
+                trace.record("sql", "get_metadata", f"id={film_id} → introuvable")
                 return None
             genres = [
                 name
@@ -73,6 +75,11 @@ class SupabaseFilmRepository:
                     {"id": film_id},
                 ).all()
             )
+        trace.record(
+            "sql", "get_metadata",
+            f"movies+genres+ratings id={film_id} → {movie.title!r}, {len(genres)} genres, "
+            f"note={rating}",
+        )
         return FilmMetadata(
             id=movie.id,
             tmdb_id=movie.tmdb_id,
@@ -103,6 +110,7 @@ class SupabaseFilmRepository:
                 ).first()
                 is None
             ):
+                trace.record("pgvector", "recommend_similar", f"id={film_id} → pas d'embedding")
                 return []
             rows = conn.execute(
                 text(
@@ -115,4 +123,8 @@ class SupabaseFilmRepository:
                 ),
                 {"id": film_id, "k": k},
             ).all()
+        trace.record(
+            "pgvector", "recommend_similar",
+            f"voisins de id={film_id} (cosinus <=>) → {len(rows)} film(s)",
+        )
         return [FilmRef(id=r.id, title=r.title) for r in rows]

@@ -7,6 +7,7 @@ Authentification par token v4 (Bearer), confine au Back-End (cf. config.settings
 
 import httpx
 
+from backend import trace
 from backend.config import settings
 
 
@@ -29,4 +30,7 @@ def get_credits(tmdb_id: int, top_cast: int = 5) -> dict:
         None,
     )
     cast = [c.get("name") for c in data.get("cast", [])[:top_cast] if c.get("name")]
+    trace.record(
+        "tmdb", "get_credits", f"tmdb_id={tmdb_id} → realisateur={director}, {len(cast)} acteurs"
+    )
     return {"director": director, "cast": cast}

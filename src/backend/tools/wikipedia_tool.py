@@ -17,8 +17,8 @@ _WIKI_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/"
 _HEADERS = {"User-Agent": "HorRAGor2/0.1 (projet pedagogique)"}
 
 
-def scrape_detailed_synopsis(title: str) -> str | None:
-    """Renvoie l'extrait Wikipedia du film, ou None si introuvable / ambigu."""
+def scrape_detailed_synopsis(title: str) -> str:
+    """Renvoie l'extrait Wikipedia du film, ou un message d'erreur explicite."""
     try:
         resp = httpx.get(
             _WIKI_SUMMARY + title.replace(" ", "_"),
@@ -28,16 +28,20 @@ def scrape_detailed_synopsis(title: str) -> str | None:
         )
     except httpx.HTTPError:
         trace.record("wikipedia", "scrape", f"{title!r} → erreur reseau")
-        return None
+        return f"Impossible de contacter Wikipedia pour '{title}' (erreur réseau)."
     if resp.status_code != 200:
         trace.record("wikipedia", "scrape", f"{title!r} → introuvable (HTTP {resp.status_code})")
-        return None
+        return f"Aucune page Wikipedia trouvée pour '{title}'."
     data = resp.json()
-    # Page d'homonymie -> pas un synopsis exploitable.
     if data.get("type") == "disambiguation":
         trace.record("wikipedia", "scrape", f"{title!r} → page d'homonymie")
-        return None
-    extract = data.get("extract") or None
-    summary = f"extrait {len(extract)} car." if extract else "rien"
-    trace.record("wikipedia", "scrape", f"{title!r} → {summary}")
+        return (
+            f"'{title}' est une page d'homonymie sur Wikipedia : plusieurs titres correspondent. "
+            "Précise l'année ou le réalisateur pour affiner la recherche."
+        )
+    extract = data.get("extract")
+    if not extract:
+        trace.record("wikipedia", "scrape", f"{title!r} → rien")
+        return f"La page Wikipedia de '{title}' ne contient pas de synopsis exploitable."
+    trace.record("wikipedia", "scrape", f"{title!r} → extrait {len(extract)} car.")
     return extract

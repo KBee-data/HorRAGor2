@@ -76,11 +76,12 @@ def movie_age(title: str) -> dict:
 
 
 @tool
-def wikipedia_synopsis(title: str) -> str | None:
+def wikipedia_synopsis(title: str) -> str:
     """Synopsis detaille depuis Wikipedia.
 
     A N'UTILISER QUE si l'utilisateur demande des details/anecdotes approfondis introuvables
-    dans les faits de la base. Renvoie null si rien trouve.
+    dans les faits de la base. Renvoie un message d'erreur explicite si le titre est ambigu
+    ou introuvable (jamais null).
     """
     trace.record("tool", "wikipedia_synopsis", f"titre={title!r}")
     return wikipedia_tool.scrape_detailed_synopsis(title)

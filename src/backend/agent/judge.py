@@ -37,6 +37,8 @@ REGLES ABSOLUES :
   (ex. un age, une annee, un realisateur deja calcules/fournis), la reponse est VALIDE.
 - Declare INVALIDE (valid=false) UNIQUEMENT si la reponse affirme un fait ABSENT des DONNEES,
   CONTREDIT directement une donnee, ou parle d'un AUTRE film que celui des DONNEES.
+- Si les DONNEES indiquent une erreur, une page d'homonymie, ou l'absence de resultat, une
+  reponse qui relaie cette limite a l'utilisateur est VALIDE (valid=true).
 - Dans le doute, declare VALIDE (valid=true). Tolerant sur le style, strict sur l'invention.
 Donne une raison courte.
 """

@@ -22,7 +22,7 @@ Agent conversationnel **RAG** spécialisé films d'horreur
 
 <br>
 
-*Équipe : … · … · …* · Soutenance Partie 2
+*Équipe : Kimberly · Nicolas · Olivier* · Soutenance Partie 2
 
 ---
 
@@ -77,7 +77,7 @@ Embeddings **locaux** (`nomic-embed-text`, 768 dim) · base **Supabase** hérit�
 START → agent ⇄ tools → juge → réponse | correction | fallback
 ```
 
-- **Cerveau** : `llama3.2:3b` (local, Ollama) — *Reason + Act*
+- **Cerveau** : `qwen2.5:7b` (local, Ollama) — *Reason + Act*
 - **4 outils par titre** : `lookup_movie`, `find_similar`, `movie_age`, `wikipedia_synopsis`
 - 🔑 *Enseignement* : un petit modèle **chaîne mal les `id`** → on lui donne des outils
   **par titre** qui composent les fonctions data en interne → **bien plus fiable**
@@ -86,7 +86,7 @@ START → agent ⇄ tools → juge → réponse | correction | fallback
 
 # Anti-hallucination : le Juge
 
-Un **2ᵉ modèle distinct** (`qwen2.5:3b`) audite chaque réponse :
+Le **même modèle** (`qwen2.5:7b`) audite chaque réponse dans un rôle distinct :
 
 - est-elle **fidèle** aux données des outils ? **cohérente** avec la question ?
 - sinon → l'agent **corrige** (boucle bornée) → puis **fallback** honnête

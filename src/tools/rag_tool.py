@@ -24,16 +24,26 @@ def search_local_rag(title_query: str) -> dict[str, Any]:
     if ref is None:
         return {"found": False, "title": None, "query": title_query}
 
-    # 2. SQL metadata retrieval
-    metadata = sql_tool.query_movie_metadata(ref.id)
+    # 2. SQL metadata retrieval (shielded against database connection failures)
+    try:
+        metadata = sql_tool.query_movie_metadata(ref.id)
+    except Exception:
+        metadata = None
+
     if metadata is None:
-        return {"found": False, "title": ref.title, "query": title_query}
+        return {
+            "found": False,
+            "title": ref.title,
+            "matched_title": ref.title,
+            "query": title_query,
+            "has_synopsis": False,
+        }
 
     data = metadata.model_dump()
     data["found"] = True
     data["matched_title"] = ref.title
 
-    # 3. PGVector recommendations
+    # 3. PGVector recommendations (shielded)
     try:
         similar = pgvector_tool.find_similar_horror_movies(ref.id, k=5)
         data["similar_movies"] = [m.title for m in similar]

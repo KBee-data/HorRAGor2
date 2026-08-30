@@ -33,15 +33,17 @@ def rag_node(state: HorragorState) -> dict[str, Any]:
 
     rag_result = search_local_rag(query)
 
+    extracted_title = rag_result.get("matched_title") or rag_result.get("title")
+
     if rag_result.get("found"):
         sources.append("FAISS Vector Index")
         sources.append("Local Horror DB")
-        extracted_title = rag_result.get("matched_title")
         has_synopsis = rag_result.get("has_synopsis", False)
         # If we have basic facts and a valid synopsis, local info is sufficient
         is_sufficient = bool(has_synopsis)
     else:
-        extracted_title = None
+        if extracted_title:
+            sources.append("FAISS Vector Index")
         is_sufficient = False
 
     return {
@@ -79,8 +81,11 @@ def _build_context_summary(state: HorragorState) -> str:
     query = state.get("query", "")
 
     lines = []
+    matched_title = rag_data.get("matched_title") or rag_data.get("title")
+    if matched_title:
+        lines.append(f"- Titre de l'œuvre : {matched_title}")
+
     if rag_data.get("found"):
-        lines.append(f"- Titre de l'œuvre : {rag_data.get('matched_title')}")
         if rag_data.get("director"):
             lines.append(f"- Réalisateur : {rag_data.get('director')}")
         if rag_data.get("release_year"):
@@ -98,7 +103,7 @@ def _build_context_summary(state: HorragorState) -> str:
         if rag_data.get("similar_movies"):
             similar = ", ".join(rag_data.get("similar_movies")[:5])
             lines.append(f"- Recommandations de films similaires : {similar}")
-    else:
+    elif not matched_title:
         lines.append(f"- Recherche locale : Aucun film correspondant exactement trouvé pour la requête '{query}'.")
 
     if web_data:

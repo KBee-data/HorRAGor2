@@ -6,8 +6,32 @@ Handles:
 3. PGVector recommendations for similar horror films.
 """
 
+import re
 from typing import Any
 from backend.tools import faiss_tool, pgvector_tool, sql_tool
+
+
+def _extract_candidate_title(query: str) -> str:
+    """Extracts likely movie title from conversational questions in English or French."""
+    q = query.strip()
+    # 1. Check for quoted text: "The Thing" or 'The Thing'
+    quoted = re.findall(r'["\']([^"\']+)["\']', q)
+    if quoted:
+        return quoted[0].strip()
+
+    # 2. Strip common conversational question prefixes
+    patterns = [
+        r"^(?:who directed|who is the director of|who made|what is the plot of|what is the story of|tell me about|what about|synopsis of|anecdotes about|trivia about)\s+",
+        r"^(?:qui a réalisé|quel est le réalisateur de|qui a fait|que raconte|de quoi parle|parle-moi de|donne-moi des infos sur|synopsis de|anecdotes sur)\s+",
+        r"^(?:the film|the movie|le film|l'œuvre)\s+",
+    ]
+    cleaned = q
+    for pat in patterns:
+        cleaned = re.sub(pat, "", cleaned, flags=re.IGNORECASE).strip()
+
+    # Strip trailing punctuation: ?, !, .
+    cleaned = re.sub(r"[?!.]+$", "", cleaned).strip()
+    return cleaned if cleaned else q
 
 
 def search_local_rag(title_query: str) -> dict[str, Any]:
@@ -19,10 +43,15 @@ def search_local_rag(title_query: str) -> dict[str, Any]:
     Returns:
         A dictionary containing matched movie details and metadata, or found=False.
     """
-    # 1. Fuzzy vector title matching via FAISS
-    ref = faiss_tool.validate_film(title_query)
+    candidate = _extract_candidate_title(title_query)
+
+    # 1. Fuzzy vector title matching via FAISS (try extracted title first, fallback to raw query)
+    ref = faiss_tool.validate_film(candidate)
+    if ref is None and candidate != title_query:
+        ref = faiss_tool.validate_film(title_query)
+
     if ref is None:
-        return {"found": False, "title": None, "query": title_query}
+        return {"found": False, "title": candidate, "matched_title": None, "query": title_query}
 
     # 2. SQL metadata retrieval (shielded against database connection failures)
     try:

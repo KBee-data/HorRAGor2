@@ -61,7 +61,8 @@ faiss_index/
 *.pkl
 *.bin
 .cache/
-models/
+/models/
+!src/models/
 embeddings/
 
 # ---- Données ----

@@ -50,12 +50,18 @@ def get_pipeline():
     return _compiled_pipeline
 
 
-async def run_agent_pipeline(query: str) -> dict[str, Any]:
+async def run_agent_pipeline(
+    query: str,
+    history: list[dict[str, Any]] | None = None,
+    active_title: str | None = None,
+) -> dict[str, Any]:
     """Asynchronously executes the HorRAGor multi-agent pipeline for a given query."""
     pipeline = get_pipeline()
     initial_state: HorragorState = {
         "query": query,
         "sources": [],
+        "conversation_history": history or [],
+        "active_title": active_title,
     }
 
     # Run in a thread to keep FastAPI async event loop unblocked
@@ -64,6 +70,7 @@ async def run_agent_pipeline(query: str) -> dict[str, Any]:
         "answer": final_state.get("final_narrative") or "Aucune réponse générée.",
         "sources": final_state.get("sources", []),
         "extracted_title": final_state.get("extracted_title"),
+        "active_title": final_state.get("active_title") or final_state.get("extracted_title"),
         "context_summary": final_state.get("context_summary"),
         "state": final_state,
     }

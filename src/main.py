@@ -7,6 +7,7 @@ Exposes:
 
 import logging
 from contextlib import asynccontextmanager
+from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -54,12 +55,15 @@ app.add_middleware(
 # --- Request & Response Schemas ---
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, description="User question or prompt about a horror film")
+    history: list[dict[str, Any]] = Field(default_factory=list, description="Prior conversation history turns")
+    active_title: str | None = Field(default=None, description="Active horror film title from prior turns")
 
 
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str] = Field(default_factory=list)
     extracted_title: str | None = None
+    active_title: str | None = None
     context_summary: str | None = None
     architecture: str = "LangGraph Multi-Agent"
 
@@ -79,11 +83,16 @@ def health() -> dict[str, str]:
 async def chat(req: ChatRequest) -> ChatResponse:
     """Executes the distributed multi-agent pipeline for the user message."""
     try:
-        result = await run_agent_pipeline(req.message)
+        result = await run_agent_pipeline(
+            req.message,
+            history=req.history,
+            active_title=req.active_title,
+        )
         return ChatResponse(
             answer=result["answer"],
             sources=result.get("sources", []),
             extracted_title=result.get("extracted_title"),
+            active_title=result.get("active_title"),
             context_summary=result.get("context_summary"),
         )
     except Exception as exc:

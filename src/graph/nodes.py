@@ -30,10 +30,11 @@ def rag_node(state: HorragorState) -> dict[str, Any]:
     """Interrogates local FAISS index and structured DB to extract raw horror facts."""
     query = state.get("query", "").strip()
     sources = list(state.get("sources") or [])
+    active_title = state.get("active_title")
 
-    rag_result = search_local_rag(query)
+    rag_result = search_local_rag(query, active_title=active_title)
 
-    extracted_title = rag_result.get("matched_title") or rag_result.get("title")
+    extracted_title = rag_result.get("matched_title") or rag_result.get("title") or active_title
 
     if rag_result.get("found"):
         sources.append("FAISS Vector Index")
@@ -48,6 +49,7 @@ def rag_node(state: HorragorState) -> dict[str, Any]:
 
     return {
         "extracted_title": extracted_title,
+        "active_title": extracted_title,
         "rag_data": rag_result,
         "is_local_info_sufficient": is_sufficient,
         "sources": sorted(set(sources)),

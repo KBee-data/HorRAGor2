@@ -60,13 +60,14 @@ with st.sidebar:
     st.markdown("---")
     if st.button("🗑️ New Conversation", use_container_width=True):
         st.session_state.messages = []
+        st.session_state.active_title = None
         st.rerun()
 
     st.markdown("**Example Questions / Exemples :**")
     st.markdown(
-        "- *Who directed The Thing and what is the story about?*\n"
-        "- *Quels sont les films similaires à Hereditary ?*\n"
-        "- *Tell me some trivia about the 1979 film Alien.*"
+        "- *Who directed The Thing?*\n"
+        "- *What year was it released? (Follow-up)*\n"
+        "- *Quels sont les films similaires à Hereditary ?*"
     )
 
 # --- Main Chat Area ---
@@ -75,6 +76,8 @@ st.caption("Inquire into the terrifying archives of horror cinema...")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "active_title" not in st.session_state:
+    st.session_state.active_title = None
 
 # Display conversation history
 for msg in st.session_state.messages:
@@ -95,14 +98,23 @@ if prompt := st.chat_input("Ask a question about a horror movie (English or Fren
     with st.chat_message("assistant"):
         with st.spinner("The dark entities are stirring (RAG → Scraper → Narration)..."):
             try:
-                resp = httpx.post(API_URL, json={"message": prompt}, timeout=120.0)
+                payload = {
+                    "message": prompt,
+                    "history": [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[:-1]],
+                    "active_title": st.session_state.get("active_title"),
+                }
+                resp = httpx.post(API_URL, json=payload, timeout=120.0)
                 if resp.status_code == 200:
                     data = resp.json()
+                    # Update active film title in memory
+                    if data.get("active_title") or data.get("extracted_title"):
+                        st.session_state.active_title = data.get("active_title") or data.get("extracted_title")
+
                     entry = {
                         "role": "assistant",
                         "content": data.get("answer", "Empty response."),
                         "sources": data.get("sources", []),
-                        "extracted_title": data.get("extracted_title"),
+                        "extracted_title": data.get("extracted_title") or st.session_state.active_title,
                         "context_summary": data.get("context_summary"),
                     }
                 else:

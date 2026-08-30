@@ -72,23 +72,46 @@ def test_fastapi_health_endpoint():
     assert data["app"] == "HorRAGor3"
 
 
+def test_anaphoric_title_resolution():
+    """Verify that follow-up questions with pronouns resolve to active_title."""
+    from src.tools.rag_tool import _extract_candidate_title
+
+    # Direct title extraction
+    assert _extract_candidate_title("Who directed The Thing?") == "The Thing"
+
+    # Follow-up with pronoun resolving to active_title
+    assert _extract_candidate_title("What year was it released?", active_title="The Thing") == "The Thing"
+    assert _extract_candidate_title("Quand est-il sorti ?", active_title="Alien") == "Alien"
+    assert _extract_candidate_title("Who acted in this movie?", active_title="Hereditary") == "Hereditary"
+
+    # New film mentioned overrides active_title
+    assert _extract_candidate_title("Tell me about Halloween", active_title="The Thing") == "Halloween"
+
+
 @pytest.mark.asyncio
 async def test_fastapi_chat_endpoint_mocked():
-    """Verify POST /chat executes successfully and returns expected payload structure."""
+    """Verify POST /chat executes successfully and supports history and active_title."""
     client = TestClient(app)
     mock_result = {
-        "answer": "In the desolate frozen wastes of Antarctica, John Carpenter summons an ancient terror...",
-        "sources": ["FAISS Vector Index", "Local Horror DB"],
+        "answer": "The Thing was released into our world in 1982 by John Carpenter...",
+        "sources": ["FAISS Vector Index", "Wikipedia Web Scraper"],
         "extracted_title": "The Thing",
+        "active_title": "The Thing",
         "context_summary": "Title: The Thing | Director: John Carpenter",
         "state": {},
     }
 
     with patch("src.main.run_agent_pipeline", new_callable=AsyncMock) as mock_pipeline:
         mock_pipeline.return_value = mock_result
-        response = client.post("/chat", json={"message": "Who directed The Thing?"})
+        response = client.post(
+            "/chat",
+            json={
+                "message": "What year was it released?",
+                "history": [{"role": "user", "content": "Who directed The Thing?"}],
+                "active_title": "The Thing",
+            },
+        )
         assert response.status_code == 200
         payload = response.json()
-        assert "John Carpenter" in payload["answer"]
-        assert "FAISS Vector Index" in payload["sources"]
-        assert payload["extracted_title"] == "The Thing"
+        assert "1982" in payload["answer"]
+        assert payload["active_title"] == "The Thing"

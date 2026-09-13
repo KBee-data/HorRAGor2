@@ -5,12 +5,47 @@ START -> rag_node -> [route_after_rag] -> (scraper_node -> narration_node | narr
 """
 
 import asyncio
+import logging
 from typing import Any
 from langgraph.graph import END, START, StateGraph
 
+from src.config import settings
 from src.graph.nodes import narration_node, rag_node, scraper_node
 from src.graph.router import route_after_rag
 from src.models.state import HorragorState
+
+logger = logging.getLogger(__name__)
+
+
+def get_callbacks() -> list[Any]:
+    """Instantiates Langfuse CallbackHandler if enabled in settings."""
+    callbacks = []
+    if settings.langfuse_enabled:
+        try:
+            import os
+
+            if settings.langfuse_public_key:
+                os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
+            if settings.langfuse_secret_key:
+                os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key
+            if settings.langfuse_host:
+                os.environ["LANGFUSE_HOST"] = settings.langfuse_host
+
+            try:
+                from langfuse.langchain import CallbackHandler
+            except ImportError:
+                from langfuse.callback import CallbackHandler
+
+            try:
+                handler = CallbackHandler(public_key=settings.langfuse_public_key)
+            except TypeError:
+                handler = CallbackHandler()
+
+            callbacks.append(handler)
+            logger.info("Langfuse CallbackHandler successfully attached to multi-agent pipeline.")
+        except Exception as exc:
+            logger.warning(f"Failed to initialize Langfuse CallbackHandler: {exc}")
+    return callbacks
 
 
 def build_pipeline():
@@ -64,8 +99,15 @@ async def run_agent_pipeline(
         "active_title": active_title,
     }
 
+    callbacks = get_callbacks()
+    config = {"callbacks": callbacks} if callbacks else None
+
     # Run in a thread to keep FastAPI async event loop unblocked
-    final_state = await asyncio.to_thread(pipeline.invoke, initial_state)
+    if config:
+        final_state = await asyncio.to_thread(pipeline.invoke, initial_state, config=config)
+    else:
+        final_state = await asyncio.to_thread(pipeline.invoke, initial_state)
+
     return {
         "answer": final_state.get("final_narrative") or "Aucune réponse générée.",
         "sources": final_state.get("sources", []),

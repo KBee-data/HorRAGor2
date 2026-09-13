@@ -26,6 +26,10 @@ services:
       - PYTHONPATH=/app/src:/app
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://postgres:horragor2_k092026@db.rtewaimfouowswismgty.supabase.co:5432/postgres}
+      - LANGFUSE_ENABLED=${LANGFUSE_ENABLED:-false}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-http://host.docker.internal:3000}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

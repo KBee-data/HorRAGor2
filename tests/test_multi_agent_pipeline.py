@@ -165,3 +165,47 @@ async def test_fastapi_chat_endpoint_mocked():
         payload = response.json()
         assert "1982" in payload["answer"]
         assert payload["active_title"] == "The Thing"
+
+
+def test_langfuse_settings_validation():
+    """Verify enterprise validation guard: keys required if langfuse_enabled=True."""
+    from pydantic import ValidationError
+    from src.config import Settings
+
+    # 1. Disabled: succeeds with default None keys
+    s_disabled = Settings(langfuse_enabled=False)
+    assert s_disabled.langfuse_enabled is False
+
+    # 2. Enabled with valid keys: succeeds
+    s_enabled = Settings(
+        langfuse_enabled=True,
+        langfuse_public_key="pk-lf-test-key",
+        langfuse_secret_key="sk-lf-test-key",
+        langfuse_host="http://localhost:3000",
+    )
+    assert s_enabled.langfuse_enabled is True
+    assert s_enabled.langfuse_public_key == "pk-lf-test-key"
+
+    # 3. Enabled with missing keys: raises ValidationError (Enterprise Security Guard)
+    with pytest.raises(ValidationError):
+        Settings(langfuse_enabled=True, langfuse_public_key=None, langfuse_secret_key=None)
+
+
+def test_langfuse_callback_instantiation():
+    """Verify get_callbacks returns empty list when disabled and instantiates CallbackHandler when enabled."""
+    from src.graph.pipeline import get_callbacks
+
+    # When disabled
+    with patch("src.graph.pipeline.settings.langfuse_enabled", False):
+        assert get_callbacks() == []
+
+    # When enabled with valid keys
+    with patch("src.graph.pipeline.settings.langfuse_enabled", True), \
+         patch("src.graph.pipeline.settings.langfuse_public_key", "pk-lf-test"), \
+         patch("src.graph.pipeline.settings.langfuse_secret_key", "sk-lf-test"), \
+         patch("src.graph.pipeline.settings.langfuse_host", "http://localhost:3000"):
+        callbacks = get_callbacks()
+        assert len(callbacks) == 1
+        assert callbacks[0].__class__.__name__ in ("CallbackHandler", "LangchainCallbackHandler")
+
+

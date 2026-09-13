@@ -23,6 +23,8 @@ dependencies = [
     "pyjwt[crypto]>=2.14.0",
     "argon2-cffi>=25.1.0",
     "python-multipart>=0.0.31",
+    "langfuse>=2.0.0",
+    "langchain>=1.4.0",
 ]
 
 [project.optional-dependencies]

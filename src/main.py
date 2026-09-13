@@ -8,12 +8,15 @@ Exposes:
 import logging
 from contextlib import asynccontextmanager
 from typing import Any
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from backend.data.faiss_index import TitleIndex
 from backend.tools.faiss_tool import set_index
+from src.auth.models import UserOut
+from src.auth.router import router as auth_router
+from src.auth.service import get_current_user
 from src.config import settings
 from src.graph.pipeline import run_agent_pipeline
 
@@ -51,6 +54,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount Authentication Router
+app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+
 
 # --- Request & Response Schemas ---
 class ChatRequest(BaseModel):
@@ -80,8 +86,11 @@ def health() -> dict[str, str]:
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest) -> ChatResponse:
-    """Executes the distributed multi-agent pipeline for the user message."""
+async def chat(
+    req: ChatRequest,
+    current_user: UserOut = Depends(get_current_user),
+) -> ChatResponse:
+    """Executes the distributed multi-agent pipeline for authenticated users."""
     try:
         result = await run_agent_pipeline(
             req.message,

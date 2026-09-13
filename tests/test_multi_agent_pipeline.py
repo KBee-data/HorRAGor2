@@ -1,5 +1,6 @@
 """Unit and integration tests for the HorRAGor Part 3 Multi-Agent Architecture."""
 
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
@@ -88,9 +89,44 @@ def test_anaphoric_title_resolution():
     assert _extract_candidate_title("Tell me about Halloween", active_title="The Thing") == "Halloween"
 
 
+def test_auth_registration_and_login():
+    """Verify user registration, login, and token generation."""
+    client = TestClient(app)
+    unique_username = f"testuser_{uuid.uuid4().hex[:6]}"
+    reg_payload = {
+        "username": unique_username,
+        "email": f"{unique_username}@horragor.ai",
+        "password": "strongpassword123",
+    }
+    # 1. Register
+    reg_resp = client.post("/auth/register", json=reg_payload)
+    assert reg_resp.status_code == 201
+    assert reg_resp.json()["username"] == unique_username
+
+    # 2. Login (OAuth2 form-data)
+    login_resp = client.post(
+        "/auth/login",
+        data={"username": unique_username, "password": "strongpassword123"},
+    )
+    assert login_resp.status_code == 200
+    token_data = login_resp.json()
+    assert "access_token" in token_data
+    assert "refresh_token" in token_data
+    assert token_data["token_type"] == "bearer"
+
+
+def test_unauthorized_chat_blocked():
+    """Verify POST /chat returns 401 Unauthorized when no Bearer token is provided."""
+    client = TestClient(app)
+    response = client.post("/chat", json={"message": "Who directed The Thing?"})
+    assert response.status_code == 401
+
+
 @pytest.mark.asyncio
 async def test_fastapi_chat_endpoint_mocked():
-    """Verify POST /chat executes successfully and supports history and active_title."""
+    """Verify POST /chat executes successfully when authorized with a Bearer token."""
+    from src.auth.security import create_access_token
+
     client = TestClient(app)
     mock_result = {
         "answer": "The Thing was released into our world in 1982 by John Carpenter...",
@@ -101,10 +137,24 @@ async def test_fastapi_chat_endpoint_mocked():
         "state": {},
     }
 
+    # Generate a valid test access token
+    test_token = create_access_token(data={"sub": "admin", "email": "admin@horragor.ai"})
+
+    # Ensure admin user exists in DB
+    from src.auth.service import get_user_by_username, register_user
+    from src.auth.models import UserCreate
+
+    if not get_user_by_username("admin"):
+        try:
+            register_user(UserCreate(username="admin", email="admin@horragor.ai", password="adminpassword123"))
+        except Exception:
+            pass
+
     with patch("src.main.run_agent_pipeline", new_callable=AsyncMock) as mock_pipeline:
         mock_pipeline.return_value = mock_result
         response = client.post(
             "/chat",
+            headers={"Authorization": f"Bearer {test_token}"},
             json={
                 "message": "What year was it released?",
                 "history": [{"role": "user", "content": "Who directed The Thing?"}],

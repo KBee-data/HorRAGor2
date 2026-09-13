@@ -18,6 +18,11 @@ dependencies = [
     "pgvector>=0.4.2",
     "langgraph>=1.2.4",
     "langchain-ollama>=1.1.0",
+    "pwdlib>=0.3.1",
+    "cryptography>=50.0.1",
+    "pyjwt[crypto]>=2.14.0",
+    "argon2-cffi>=25.1.0",
+    "python-multipart>=0.0.31",
 ]
 
 [project.optional-dependencies]

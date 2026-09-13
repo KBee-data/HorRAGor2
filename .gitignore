@@ -35,7 +35,9 @@ ENV/
 !.env.example
 *.key
 *.pem
+certs/
 secrets/
+data/users.json
 credentials.json
 service_account*.json
 
@@ -74,6 +76,8 @@ data/interim/
 *.csv
 *.parquet
 !data/**/sample*.csv
+supabase_backup.sql
+supabase.zip
 
 # ---- Logs ----
 *.log

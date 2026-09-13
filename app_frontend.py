@@ -9,16 +9,17 @@ Features:
 - Context Trimming & Agent Reasoning expanders to inspect multi-agent cooperation.
 """
 
+import os
 import httpx
 import streamlit as st
 
 st.set_page_config(
-    page_title="HorRAGor3 — The Gothic Storyteller 👻",
+    page_title="HorRAGor — The Gothic Storyteller 👻",
     page_icon="👻",
     layout="wide",
 )
 
-API_BASE = "http://127.0.0.1:8000"
+API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 API_CHAT_URL = f"{API_BASE}/chat"
 API_LOGIN_URL = f"{API_BASE}/auth/login"
 API_REGISTER_URL = f"{API_BASE}/auth/register"

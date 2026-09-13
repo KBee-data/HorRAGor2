@@ -1,0 +1,43 @@
+# Git
+.git
+.github
+.gitignore
+
+# Virtual environment & Python cache
+.venv
+venv
+env
+ENV
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Tests & quality
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Logs & temporary files
+logs
+*.log
+*.tmp
+*.bak
+
+# Environment & local secrets
+.env
+.env.*
+certs
+secrets
+data/users.json
+
+# Heavy database dumps / notebooks
+supabase_backup.sql
+supabase.zip
+.ipynb_checkpoints
+
+# Documentation & tests (not needed inside production runtime containers)
+docs
+tests

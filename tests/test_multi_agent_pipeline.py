@@ -209,3 +209,17 @@ def test_langfuse_callback_instantiation():
         assert callbacks[0].__class__.__name__ in ("CallbackHandler", "LangchainCallbackHandler")
 
 
+def test_director_mismatch_triggers_scraper():
+    """Verify that when the query specifies a director contradictory to local DB, is_sufficient is False."""
+    from src.graph.nodes import rag_node
+
+    state = {
+        "query": "What about the comedy Scary Movie directed by Keenan Ivory Wayans?",
+        "sources": [],
+    }
+    result = rag_node(state)
+    assert result["is_local_info_sufficient"] is False
+    assert result["extracted_title"] == "Scary Movie"
+
+
+

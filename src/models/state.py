@@ -42,5 +42,8 @@ class HorragorState(TypedDict, total=False):
     # Multi-turn conversation history
     conversation_history: list[dict[str, Any]] | None
 
+    # Retrieval and agent data sources (e.g. FAISS Vector Index, Wikipedia Web Scraper)
+    sources: list[str] | None
+
     # LangGraph message history (optional for conversational turns)
     messages: Annotated[list[BaseMessage], add_messages]

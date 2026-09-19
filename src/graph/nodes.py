@@ -6,13 +6,18 @@ Contains:
 3. narration_node: Gothic horror storyteller with strict context trimming & isolation.
 """
 
+import re
 from typing import Any
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 
 from src.config import settings
 from src.models.state import HorragorState
-from src.tools.rag_tool import search_local_rag
+from src.tools.rag_tool import (
+    _extract_candidate_title,
+    extract_query_constraints,
+    search_local_rag,
+)
 from src.tools.scraper_tool import scrape_web_synopsis
 
 # --- LLM Instances ---
@@ -32,25 +37,57 @@ def rag_node(state: HorragorState) -> dict[str, Any]:
     sources = list(state.get("sources") or [])
     active_title = state.get("active_title")
 
+    candidate_title, spec_dir, spec_year = extract_query_constraints(query, active_title=active_title)
     rag_result = search_local_rag(query, active_title=active_title)
 
-    extracted_title = rag_result.get("matched_title") or rag_result.get("title") or active_title
+    matched_title = rag_result.get("matched_title") or rag_result.get("title")
+    extracted_title = matched_title or candidate_title or active_title
 
-    if rag_result.get("found"):
+    # 1. Detect sequel / number mismatch (e.g. user asked for 'Scary Movie 3' but FAISS returned 'Scary Movie')
+    sequel_mismatch = False
+    if candidate_title and matched_title:
+        q_nums = set(re.findall(r"\b(?:\d+|[ivx]+)\b", candidate_title.lower()))
+        m_nums = set(re.findall(r"\b(?:\d+|[ivx]+)\b", matched_title.lower()))
+        if q_nums and q_nums != m_nums:
+            sequel_mismatch = True
+            extracted_title = candidate_title  # Forward exact sequel title to Scraper Agent
+
+    # 2. Detect director contradiction (e.g. user asked for 'Keenan Ivory Wayans' but DB has 'Daniel Erickson')
+    director_mismatch = False
+    if spec_dir and rag_result.get("director"):
+        local_dir = str(rag_result["director"]).lower()
+        dir_tokens = [t.lower() for t in re.findall(r"[A-Za-zÀ-ÿ]+", spec_dir) if len(t) > 2]
+        if dir_tokens and not any(t in local_dir for t in dir_tokens):
+            director_mismatch = True
+            extracted_title = candidate_title
+
+    # 3. Detect release year contradiction (e.g. user asked for '2000' but DB has '1991')
+    year_mismatch = False
+    if spec_year and rag_result.get("release_year"):
+        try:
+            local_year = int(rag_result["release_year"])
+            if abs(spec_year - local_year) > 1:
+                year_mismatch = True
+                extracted_title = candidate_title
+        except (ValueError, TypeError):
+            pass
+
+    has_mismatch = sequel_mismatch or director_mismatch or year_mismatch
+
+    if rag_result.get("found") and not has_mismatch:
         sources.append("FAISS Vector Index")
         sources.append("Local Horror DB")
         has_synopsis = rag_result.get("has_synopsis", False)
-        # If we have basic facts and a valid synopsis, local info is sufficient
         is_sufficient = bool(has_synopsis)
     else:
-        if extracted_title:
+        if extracted_title and not has_mismatch:
             sources.append("FAISS Vector Index")
         is_sufficient = False
 
     return {
         "extracted_title": extracted_title,
         "active_title": extracted_title,
-        "rag_data": rag_result,
+        "rag_data": rag_result if not has_mismatch else {},
         "is_local_info_sufficient": is_sufficient,
         "sources": sorted(set(sources)),
     }
@@ -153,4 +190,5 @@ def narration_node(state: HorragorState) -> dict[str, Any]:
         "context_summary": context_summary,
         "final_narrative": final_text,
         "messages": [AIMessage(content=final_text)],
+        "sources": list(state.get("sources") or []),
     }

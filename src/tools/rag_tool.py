@@ -6,23 +6,86 @@ Handles:
 3. PGVector recommendations for similar horror films.
 """
 
+import json
+import logging
 import re
 from typing import Any
+import httpx
+
 from backend.tools import faiss_tool, pgvector_tool, sql_tool
+from src.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+def _extract_entities_llm(query: str) -> tuple[str | None, str | None, int | None]:
+    """Uses local LLM to extract movie title, director, and year in structured JSON."""
+    try:
+        url = f"{settings.ollama_base_url.rstrip('/')}/api/generate"
+        prompt = (
+            "You are a movie entity extraction system. Identify the movie title, "
+            "director (if mentioned), and release year (if mentioned) from the user query.\n"
+            "If the user asks about a sequel (e.g. Scary Movie 3), include the number in the title.\n"
+            "Return JSON matching: {\"title\": \"<extracted title or null>\", \"director\": \"<director or null>\", \"year\": <year as int or null>}\n\n"
+            f"User query: \"{query}\""
+        )
+        payload = {
+            "model": settings.llm_model,
+            "prompt": prompt,
+            "format": "json",
+            "stream": False,
+            "options": {"temperature": 0.0, "num_predict": 60},
+        }
+        with httpx.Client(timeout=3.0) as client:
+            resp = client.post(url, json=payload)
+            if resp.status_code == 200:
+                raw_json = resp.json().get("response", "{}")
+                data = json.loads(raw_json)
+                title = data.get("title")
+                director = data.get("director")
+                year = data.get("year")
+                if isinstance(year, str) and year.isdigit():
+                    year = int(year)
+                elif not isinstance(year, int):
+                    year = None
+
+                if title and str(title).strip().lower() not in ("null", "none", ""):
+                    clean_title = str(title).strip()
+                    clean_dir = (
+                        str(director).strip()
+                        if director and str(director).strip().lower() not in ("null", "none", "")
+                        else None
+                    )
+                    return clean_title, clean_dir, year
+    except Exception as exc:
+        logger.debug(f"LLM entity extraction skipped/failed: {exc}")
+    return None, None, None
 
 
 def extract_query_constraints(query: str, active_title: str | None = None) -> tuple[str, str | None, int | None]:
     """Extracts movie title and optional director/year constraints from conversational queries.
 
+    Employs a two-layer extraction strategy:
+    1. Zero-shot LLM Entity Extraction via local Ollama (resilient against arbitrary phrasing and typos).
+    2. Deterministic NLP / Regex fallback (instant execution for offline tests and simple queries).
+
     Returns:
         tuple of (clean_candidate_title, specified_director, specified_year)
     """
     q = query.strip()
-    # 1. Check for quoted text: "The Thing" or 'The Thing'
+
+    # 1. Fast path: Quoted text takes immediate precedence ("The Thing")
     quoted = re.findall(r'["\']([^"\']+)["\']', q)
     quoted_title = quoted[0].strip() if quoted else None
 
-    # 2. Extract director if specified: 'directed by John Carpenter', 'réalisé par Jordan Peele'
+    # 2. Check if the question is anaphoric ('it', 'this movie', 'ce film', 'il')
+    anaphora_patterns = [
+        r"\b(?:it|this movie|this film|that movie|that film)\b",
+        r"\b(?:ce film|ce chef-d'œuvre|cette œuvre|il|elle|lui|dedans|son|sa|ses)\b",
+    ]
+    is_anaphoric = any(re.search(pat, q, flags=re.IGNORECASE) for pat in anaphora_patterns)
+
+    # 3. Deterministic constraint extraction for director & year
     m_dir = re.search(
         r'\b(?:directed by|réalisé par|is the director of)\s+([A-Za-zÀ-ÿ\s\-\.\']+?)(?:\s+(?:in|released in|sorti en|from)\s+\d{4}|[?!,.]|$)',
         q,
@@ -30,37 +93,51 @@ def extract_query_constraints(query: str, active_title: str | None = None) -> tu
     )
     specified_director = m_dir.group(1).strip() if m_dir else None
 
-    # 3. Extract 4-digit release year if specified: 'released in 2000', 'sorti en 1982', 'de 2000'
     m_year = re.search(r'\b(?:released in|sorti en|from|year|année|de|in)\s+(\d{4})\b', q, flags=re.IGNORECASE)
     specified_year = int(m_year.group(1)) if m_year else None
+
+    if active_title and is_anaphoric:
+        return active_title, specified_director, specified_year
 
     if quoted_title:
         return quoted_title, specified_director, specified_year
 
-    # 4. Check if the question is anaphoric ('it', 'this movie', 'ce film', 'il')
-    anaphora_patterns = [
-        r"\b(?:it|this movie|this film|that movie|that film)\b",
-        r"\b(?:ce film|ce chef-d'œuvre|cette œuvre|il|elle|lui|dedans|son|sa|ses)\b",
-    ]
-    is_anaphoric = any(re.search(pat, q, flags=re.IGNORECASE) for pat in anaphora_patterns)
+    # 4. Layer 1: Zero-shot LLM Entity Extraction
+    llm_title, llm_dir, llm_year = _extract_entities_llm(q)
+    if llm_title:
+        final_dir = llm_dir or specified_director
+        final_year = llm_year or specified_year
+        return llm_title, final_dir, final_year
 
-    # 5. Strip common conversational prefixes and genre descriptors
+    # 5. Layer 2: Robust Deterministic NLP Fallback
     cleaned = q
-    prefixes = [
-        r"^(?:who directed|who is the director of|who made|what is the plot of|what is the story of|tell me about|what about|synopsis of|anecdotes about|trivia about|what year was|when was)\s+",
-        r"^(?:qui a réalisé|quel est le réalisateur de|qui a fait|que raconte|de quoi parle|parle-moi de|donne-moi des infos sur|synopsis de|anecdotes sur|en quelle année est|quand est)\s+",
-        r"^(?:the comedy|the horror movie|the horror film|the movie|the film|the parody|the slasher|le film|la comédie|l'œuvre)\s+",
-    ]
-    for pat in prefixes:
-        cleaned = re.sub(pat, "", cleaned, flags=re.IGNORECASE).strip()
 
-    # 6. Strip trailing 'directed by ...' or 'released in ...' clauses from title
+    # Strip trailing director/year clauses from title string
     cleaned = re.sub(r"\b(?:directed by|réalisé par)\s+.*$", "", cleaned, flags=re.IGNORECASE).strip()
     cleaned = re.sub(r"\b(?:released in|sorti en|from)\s+\d{4}.*$", "", cleaned, flags=re.IGNORECASE).strip()
     cleaned = re.sub(r"[?!.,]+$", "", cleaned).strip()
 
-    # If anaphoric reference or cleaned became empty
-    if active_title and (is_anaphoric or not cleaned):
+    # Iterative prefix stripping (handles questions + descriptors like "what can you tell me about" + "the comedy")
+    prefixes = [
+        r"^(?:what can you tell me about|can you tell me about|could you tell me about|what do you know about|do you know anything about)\s+",
+        r"^(?:tell me all about|tell me more about|tell me about|what about|synopsis of|anecdotes about|trivia about)\s+",
+        r"^(?:who directed|who is the director of|who made|what is the plot of|what is the story of|what is the synopsis of|what year was|when was)\s+",
+        r"^(?:que peux-tu me dire sur|peux-tu me parler de|peux-tu me dire|parle-moi de|dis-moi tout sur|donne-moi des infos sur)\s+",
+        r"^(?:qui a réalisé|quel est le réalisateur de|qui a fait|que raconte|de quoi parle|synopsis de|anecdotes sur|en quelle année est|quand est)\s+",
+        r"^(?:the comedy|the horror movie|the horror film|the movie|the film|the parody|the slasher|the feature film)\s+",
+        r"^(?:le film d[\'\"]horreur|le film|la comédie|la parodie|l[\'\"]œuvre)\s+",
+    ]
+
+    changed = True
+    while changed:
+        changed = False
+        for pat in prefixes:
+            new_cleaned = re.sub(pat, "", cleaned, flags=re.IGNORECASE).strip()
+            if new_cleaned != cleaned:
+                cleaned = new_cleaned
+                changed = True
+
+    if active_title and not cleaned:
         return active_title, specified_director, specified_year
 
     title = cleaned if cleaned else (active_title or q)

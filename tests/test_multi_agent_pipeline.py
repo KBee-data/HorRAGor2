@@ -222,4 +222,16 @@ def test_director_mismatch_triggers_scraper():
     assert result["extracted_title"] == "Scary Movie"
 
 
+def test_conversational_question_entity_extraction():
+    """Verify that complex conversational phrasing correctly extracts clean title and constraints."""
+    from src.tools.rag_tool import extract_query_constraints
+
+    title, director, year = extract_query_constraints(
+        "What can you tell me about the comedy Scary Movie directed by Keenan Ivory Wayans?"
+    )
+    assert title == "Scary Movie"
+    assert "Keenan" in (director or "") or "Keenen" in (director or "")
+
+
+
 

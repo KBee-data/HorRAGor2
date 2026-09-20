@@ -1,0 +1,59 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: horragor-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs/nginx:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - horragor-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: horragor-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app/src:/app
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - DATABASE_URL=${DATABASE_URL:-postgresql+psycopg://postgres:horragor2_k092026@db.rtewaimfouowswismgty.supabase.co:5432/postgres}
+      - LANGFUSE_ENABLED=${LANGFUSE_ENABLED:-false}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-http://host.docker.internal:3000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./certs:/app/certs
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - horragor-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: horragor-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - horragor-net
+
+networks:
+  horragor-net:
+    driver: bridge

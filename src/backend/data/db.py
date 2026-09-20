@@ -22,4 +22,9 @@ def get_engine() -> Engine:
             "DATABASE_URL non defini : renseignez-le dans .env "
             "(connection string Supabase, schema postgresql+psycopg://...)."
         )
-    return create_engine(settings.database_url, pool_pre_ping=True, future=True)
+    return create_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        future=True,
+        connect_args={"connect_timeout": 2},
+    )

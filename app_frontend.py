@@ -45,6 +45,22 @@ SOURCE_ICONS = {
 }
 
 
+# --- Custom Styling for Code & Context Inspection ---
+st.markdown(
+    """
+    <style>
+    /* Ensure code blocks and expander content wrap cleanly without text cut-off */
+    .stCodeBlock pre, .stCodeBlock code {
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+        overflow-x: auto !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 def _render_meta(msg: dict) -> None:
     """Renders sources used during the multi-agent execution."""
     sources = msg.get("sources") or []
@@ -64,7 +80,7 @@ def _render_context_inspector(msg: dict) -> None:
         if title:
             st.markdown(f"**Canonical Title (FAISS Match)**: `{title}`")
         st.markdown("**Clean Factual Synthesis Transmitted to Narration Agent (Token Isolation):**")
-        st.code(summary, language="text")
+        st.code(summary, language="text", wrap_lines=True)
 
 
 # --- Authentication Actions ---
